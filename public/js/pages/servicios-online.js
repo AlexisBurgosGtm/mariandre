@@ -1,5 +1,6 @@
 import { api } from '../api.js';
 import { showToast, confirmDialog, openModal, showLoader } from '../utils.js';
+import { tw, cx } from '../ui.js';
 
 const pingTimers = new Map();
 
@@ -18,33 +19,35 @@ function getIntervalOptions(selected = 5) {
 }
 
 function getRowEl(id) {
-  return document.querySelector(`tr.servicio-row[data-id="${id}"]`);
+  return document.querySelector(`tr[data-servicio-id="${id}"]`);
 }
 
 function applyRowStatus(id, status) {
   const row = getRowEl(id);
   if (!row) return;
 
-  row.classList.remove('servicio-row--online', 'servicio-row--offline', 'servicio-row--checking');
+  row.className = cx(
+    'border-b border-slate-100',
+    status === 'online' && 'bg-green-50/50',
+    status === 'offline' && 'bg-red-50/50',
+    status === 'checking' && 'bg-amber-50/50',
+  );
 
-  const statusEl = row.querySelector('.servicio-row__status');
+  const statusEl = row.querySelector('[data-role="status"]');
   if (!statusEl) return;
 
   if (status === 'online') {
-    row.classList.add('servicio-row--online');
-    statusEl.innerHTML = 'En línea';
-    statusEl.className = 'servicio-row__status servicio-row__status--online';
+    statusEl.textContent = 'En línea';
+    statusEl.className = tw.statusOnline;
   } else if (status === 'offline') {
-    row.classList.add('servicio-row--offline');
-    statusEl.innerHTML = 'Fuera de línea';
-    statusEl.className = 'servicio-row__status servicio-row__status--offline';
+    statusEl.textContent = 'Fuera de línea';
+    statusEl.className = tw.statusOffline;
   } else if (status === 'checking') {
-    row.classList.add('servicio-row--checking');
-    statusEl.innerHTML = '<span class="servicio-ping-loader"><i class="fa-solid fa-spinner fa-spin"></i> Verificando...</span>';
-    statusEl.className = 'servicio-row__status servicio-row__status--checking';
+    statusEl.innerHTML = '<span class="inline-flex items-center gap-1.5"><i class="fa-solid fa-spinner fa-spin"></i> Verificando...</span>';
+    statusEl.className = tw.statusChecking;
   } else {
-    statusEl.innerHTML = 'Sin verificar';
-    statusEl.className = 'servicio-row__status';
+    statusEl.textContent = 'Sin verificar';
+    statusEl.className = tw.statusMuted;
   }
 
   row.querySelectorAll('.btn-ping').forEach((btn) => {
@@ -100,24 +103,24 @@ function getServicioFormHtml(servicio) {
   const data = servicio || {};
   return `
     <form id="servicio-form" novalidate>
-      <div class="form-grid">
-        <div class="form-group form-group--full">
-          <label for="servicio-nombre">Nombre del servicio</label>
-          <input type="text" id="servicio-nombre" name="nombre" value="${escapeHtml(data.nombre || '')}" required placeholder="Mi API">
+      <div class="${tw.formGrid}">
+        <div class="${tw.formGroupFull}">
+          <label class="${tw.label}" for="servicio-nombre">Nombre del servicio</label>
+          <input class="${tw.input}" type="text" id="servicio-nombre" name="nombre" value="${escapeHtml(data.nombre || '')}" required placeholder="Mi API">
         </div>
-        <div class="form-group form-group--full">
-          <label for="servicio-url">URL</label>
-          <input type="text" id="servicio-url" name="url" value="${escapeHtml(data.url || '')}" required placeholder="ejemplo.com/health o https://...">
+        <div class="${tw.formGroupFull}">
+          <label class="${tw.label}" for="servicio-url">URL</label>
+          <input class="${tw.input}" type="text" id="servicio-url" name="url" value="${escapeHtml(data.url || '')}" required placeholder="ejemplo.com/health o https://...">
         </div>
-        <div class="form-group form-group--full">
-          <label for="servicio-interval">Ping automático</label>
-          <select id="servicio-interval" name="pingIntervalMinutes">
+        <div class="${tw.formGroupFull}">
+          <label class="${tw.label}" for="servicio-interval">Ping automático</label>
+          <select class="${tw.input}" id="servicio-interval" name="pingIntervalMinutes">
             ${getIntervalOptions(data.pingIntervalMinutes || 5)}
           </select>
         </div>
       </div>
-      <div class="form-actions">
-        <button type="submit" class="btn btn--primary"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+      <div class="${tw.formActions}">
+        <button type="submit" class="${tw.btnPrimary}"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
       </div>
     </form>
   `;
@@ -239,7 +242,7 @@ function bindTableEvents(container, servicios, reload) {
 function renderHostingBanner(hosting) {
   if (!hosting?.conexion) {
     return `
-      <div class="hosting-banner hosting-banner--warn glass">
+      <div class="${tw.hostingBannerWarn}">
         <i class="fa-solid fa-triangle-exclamation"></i>
         <span>Configura el <strong>Hosting principal</strong> en Configuraciones para usar esta sección.</span>
       </div>
@@ -247,9 +250,9 @@ function renderHostingBanner(hosting) {
   }
 
   return `
-    <div class="hosting-banner glass">
+    <div class="${tw.hostingBanner}">
       <i class="fa-solid fa-server"></i>
-      <span>Hosting: <strong>${escapeHtml(hosting.conexion.nombre)}</strong> — tabla <code>SERVICIOS_ONLINE</code></span>
+      <span>Hosting: <strong>${escapeHtml(hosting.conexion.nombre)}</strong> — tabla <code class="${tw.code}">SERVICIOS_ONLINE</code></span>
     </div>
   `;
 }
@@ -276,7 +279,7 @@ export async function renderServiciosOnline(container) {
   try {
     hosting = await api.getHostingStatus();
   } catch (err) {
-    container.innerHTML = `<div class="empty-state glass"><p>${escapeHtml(err.message)}</p></div>`;
+    container.innerHTML = `<div class="${tw.empty}"><p>${escapeHtml(err.message)}</p></div>`;
     return;
   }
 
@@ -284,10 +287,10 @@ export async function renderServiciosOnline(container) {
     stopAllPings();
     container.innerHTML = `
       ${renderHostingBanner(hosting)}
-      <div class="empty-state glass">
-        <i class="fa-solid fa-globe"></i>
-        <h3>Hosting principal no configurado</h3>
-        <p>Ve a Configuraciones y selecciona la conexión del hosting.</p>
+      <div class="${tw.empty}">
+        <i class="fa-solid fa-globe text-3xl text-slate-400"></i>
+        <h3 class="text-lg font-semibold text-slate-800">Hosting principal no configurado</h3>
+        <p class="text-sm text-slate-500">Ve a Configuraciones y selecciona la conexión del hosting.</p>
       </div>
     `;
     return;
@@ -298,7 +301,7 @@ export async function renderServiciosOnline(container) {
   } catch (err) {
     container.innerHTML = `
       ${renderHostingBanner(hosting)}
-      <div class="empty-state glass"><p>${escapeHtml(err.message)}</p></div>
+      <div class="${tw.empty}"><p>${escapeHtml(err.message)}</p></div>
     `;
     return;
   }
@@ -307,11 +310,11 @@ export async function renderServiciosOnline(container) {
     stopAllPings();
     container.innerHTML = `
       ${renderHostingBanner(hosting)}
-      <div class="empty-state glass">
-        <i class="fa-solid fa-globe"></i>
-        <h3>Sin servicios online</h3>
-        <p>Agrega URLs para monitorear su disponibilidad con ping manual o automático.</p>
-        <button class="btn btn--primary" id="btn-first-servicio" type="button">
+      <div class="${tw.empty}">
+        <i class="fa-solid fa-globe text-3xl text-slate-400"></i>
+        <h3 class="text-lg font-semibold text-slate-800">Sin servicios online</h3>
+        <p class="text-sm text-slate-500">Agrega URLs para monitorear su disponibilidad con ping manual o automático.</p>
+        <button class="${tw.btnPrimary}" id="btn-first-servicio" type="button">
           <i class="fa-solid fa-plus"></i> Agregar servicio
         </button>
       </div>
@@ -322,36 +325,36 @@ export async function renderServiciosOnline(container) {
 
   container.innerHTML = `
     ${renderHostingBanner(hosting)}
-    <div class="table-panel glass">
-      <table class="data-table servicios-table">
+    <div class="${tw.tablePanel}">
+      <table class="${tw.table}">
         <thead>
           <tr>
-            <th>Servicio</th>
-            <th>URL</th>
-            <th>Estado</th>
-            <th>Ping automático</th>
-            <th>Acciones</th>
+            <th class="${tw.th}">Servicio</th>
+            <th class="${tw.th}">URL</th>
+            <th class="${tw.th}">Estado</th>
+            <th class="${tw.th}">Ping automático</th>
+            <th class="${tw.th}">Acciones</th>
           </tr>
         </thead>
         <tbody>
           ${servicios.map((s) => `
-            <tr class="servicio-row" data-id="${escapeHtml(s.id)}">
-              <td class="servicio-row__nombre">${escapeHtml(s.nombre)}</td>
-              <td><a class="servicio-row__url" href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.url)}</a></td>
-              <td><span class="servicio-row__status">Sin verificar</span></td>
-              <td>
-                <select class="servicio-interval-select" data-id="${escapeHtml(s.id)}" title="Intervalo de ping automático">
+            <tr data-servicio-id="${escapeHtml(s.id)}">
+              <td class="${cx(tw.td, 'font-medium text-slate-800')}">${escapeHtml(s.nombre)}</td>
+              <td class="${tw.td}"><a class="text-blue-600 underline-offset-2 hover:underline" href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.url)}</a></td>
+              <td class="${tw.td}"><span class="${tw.statusMuted}" data-role="status">Sin verificar</span></td>
+              <td class="${tw.td}">
+                <select class="${cx(tw.input, 'servicio-interval-select max-w-40')}" data-id="${escapeHtml(s.id)}" title="Intervalo de ping automático">
                   ${getIntervalOptions(s.pingIntervalMinutes || 5)}
                 </select>
               </td>
-              <td class="table-actions">
-                <button class="btn btn--ghost btn--sm btn-ping" data-id="${escapeHtml(s.id)}" title="Hacer ping">
+              <td class="${cx(tw.td, tw.tableActions)}">
+                <button class="${cx(tw.btnGhost, tw.btnSm)} btn-ping" data-id="${escapeHtml(s.id)}" title="Hacer ping">
                   <i class="fa-solid fa-signal"></i> Ping
                 </button>
-                <button class="btn btn--ghost btn--sm btn-edit-servicio" data-id="${escapeHtml(s.id)}" title="Editar">
+                <button class="${cx(tw.btnGhost, tw.btnSm)} btn-edit-servicio" data-id="${escapeHtml(s.id)}" title="Editar">
                   <i class="fa-solid fa-pen"></i>
                 </button>
-                <button class="btn btn--danger btn--sm btn-delete-servicio" data-id="${escapeHtml(s.id)}" title="Eliminar">
+                <button class="${cx(tw.btnDanger, tw.btnSm)} btn-delete-servicio" data-id="${escapeHtml(s.id)}" title="Eliminar">
                   <i class="fa-solid fa-trash"></i>
                 </button>
               </td>

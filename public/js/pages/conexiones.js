@@ -1,6 +1,7 @@
 import { api } from '../api.js';
 import { showToast, confirmDialog, openModal, getTipoBadge, getFormHtml, bindFormEvents, showLoader, showTableLoader } from '../utils.js';
 import { runConnectionTest } from '../services/connections.js';
+import { tw, cx } from '../ui.js';
 
 const PING_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -14,7 +15,7 @@ function escapeHtml(text) {
 }
 
 function getCardEl(id) {
-  return document.querySelector(`.card[data-id="${id}"]`);
+  return document.querySelector(`[data-conexion-id="${id}"]`);
 }
 
 function formatDbSizeMb(mb) {
@@ -29,16 +30,20 @@ function applyCardStatus(id, status, meta = {}) {
   const card = getCardEl(id);
   if (!card) return;
 
-  card.classList.remove('card--online', 'card--offline', 'card--checking');
+  const ring =
+    status === 'online' ? tw.cardRingOnline
+      : status === 'offline' ? tw.cardRingOffline
+        : status === 'checking' ? tw.cardRingChecking
+          : '';
+  card.className = cx(tw.card, ring);
 
-  const statusEl = card.querySelector('.card__status');
-  const sizeEl = card.querySelector('.card__db-size');
+  const statusEl = card.querySelector('[data-role="status"]');
+  const sizeEl = card.querySelector('[data-role="db-size"]');
   if (!statusEl) return;
 
   if (status === 'online') {
-    card.classList.add('card--online');
     statusEl.textContent = 'Activa';
-    statusEl.className = 'card__status card__status--online';
+    statusEl.className = tw.statusOnline;
     if (sizeEl) {
       const formatted = formatDbSizeMb(meta.databaseSizeMb);
       if (formatted != null) {
@@ -50,24 +55,22 @@ function applyCardStatus(id, status, meta = {}) {
       }
     }
   } else if (status === 'offline') {
-    card.classList.add('card--offline');
     statusEl.textContent = 'Inactiva';
-    statusEl.className = 'card__status card__status--offline';
+    statusEl.className = tw.statusOffline;
     if (sizeEl) {
       sizeEl.textContent = '';
       sizeEl.hidden = true;
     }
   } else if (status === 'checking') {
-    card.classList.add('card--checking');
     statusEl.textContent = 'Verificando...';
-    statusEl.className = 'card__status card__status--checking';
+    statusEl.className = tw.statusChecking;
     if (sizeEl) {
       sizeEl.textContent = '';
       sizeEl.hidden = true;
     }
   } else {
     statusEl.textContent = 'Sin verificar';
-    statusEl.className = 'card__status';
+    statusEl.className = tw.statusMuted;
     if (sizeEl) {
       sizeEl.textContent = '';
       sizeEl.hidden = true;
@@ -110,36 +113,36 @@ function stopPingTimer() {
 function renderCard(conexion) {
   const puerto = conexion.puerto || (conexion.tipo === 'mssql' ? 1433 : 3306);
   return `
-    <div class="card glass" data-id="${conexion.id}">
-      <div class="card__header">
+    <div class="${tw.card}" data-conexion-id="${conexion.id}">
+      <div class="flex items-start justify-between gap-3">
         <div>
-          <div class="card__title">${escapeHtml(conexion.nombre)}</div>
-          <div class="card__meta">${escapeHtml(conexion.host)}:${puerto}</div>
+          <div class="text-base font-semibold text-slate-900">${escapeHtml(conexion.nombre)}</div>
+          <div class="text-sm text-slate-500">${escapeHtml(conexion.host)}:${puerto}</div>
         </div>
-        <div class="card__header-right">
-          <div class="card__status-group">
-            <span class="card__status">Sin verificar</span>
-            <span class="card__db-size" hidden></span>
+        <div class="flex flex-col items-end gap-2">
+          <div class="flex flex-col items-end gap-0.5 text-right">
+            <span class="${tw.statusMuted}" data-role="status">Sin verificar</span>
+            <span class="text-xs text-slate-500" data-role="db-size" hidden></span>
           </div>
           ${getTipoBadge(conexion.tipo)}
         </div>
       </div>
-      <div class="card__details">
-        <div class="card__detail"><i class="fa-solid fa-database"></i> ${escapeHtml(conexion.baseDatos)}</div>
-        <div class="card__detail"><i class="fa-solid fa-user"></i> ${escapeHtml(conexion.usuario || '—')}</div>
-        <div class="card__detail"><i class="fa-solid fa-fingerprint"></i> ID: ${escapeHtml(conexion.id)}</div>
+      <div class="flex flex-col gap-1.5 text-sm text-slate-600">
+        <div class="flex items-center gap-2"><i class="fa-solid fa-database text-slate-400"></i> ${escapeHtml(conexion.baseDatos)}</div>
+        <div class="flex items-center gap-2"><i class="fa-solid fa-user text-slate-400"></i> ${escapeHtml(conexion.usuario || '—')}</div>
+        <div class="flex items-center gap-2"><i class="fa-solid fa-fingerprint text-slate-400"></i> ID: ${escapeHtml(conexion.id)}</div>
       </div>
-      <div class="card__actions">
-        <button class="btn btn--ghost btn--sm btn-query" data-id="${conexion.id}" data-nombre="${escapeHtml(conexion.nombre)}" title="Ejecutar consulta SQL">
+      <div class="flex flex-wrap gap-2">
+        <button class="${cx(tw.btnGhost, tw.btnSm)} btn-query" data-id="${conexion.id}" data-nombre="${escapeHtml(conexion.nombre)}" title="Ejecutar consulta SQL">
           <i class="fa-solid fa-terminal"></i> Query
         </button>
-        <button class="btn btn--ghost btn--sm btn-test" data-id="${conexion.id}" data-nombre="${escapeHtml(conexion.nombre)}">
+        <button class="${cx(tw.btnGhost, tw.btnSm)} btn-test" data-id="${conexion.id}" data-nombre="${escapeHtml(conexion.nombre)}">
           <i class="fa-solid fa-plug"></i> Probar
         </button>
-        <button class="btn btn--ghost btn--sm btn-edit" data-id="${conexion.id}" title="Editar">
+        <button class="${cx(tw.btnGhost, tw.btnSm)} btn-edit" data-id="${conexion.id}" title="Editar">
           <i class="fa-solid fa-pen"></i>
         </button>
-        <button class="btn btn--danger btn--sm btn-delete" data-id="${conexion.id}">
+        <button class="${cx(tw.btnDanger, tw.btnSm)} btn-delete" data-id="${conexion.id}">
           <i class="fa-solid fa-trash"></i>
         </button>
       </div>
@@ -149,16 +152,16 @@ function renderCard(conexion) {
 
 function openQueryModal(conexion) {
   openModal(`Query SQL — ${escapeHtml(conexion.nombre)}`, `
-    <div class="form-group form-group--full">
-      <label for="sql-query-input">Consulta SQL</label>
-      <textarea id="sql-query-input" rows="8" placeholder="SELECT * FROM tabla LIMIT 10;"></textarea>
+    <div class="${tw.formGroupFull}">
+      <label class="${tw.label}" for="sql-query-input">Consulta SQL</label>
+      <textarea class="${tw.input}" id="sql-query-input" rows="8" placeholder="SELECT * FROM tabla LIMIT 10;"></textarea>
     </div>
-    <div class="form-actions">
-      <button type="button" class="btn btn--primary" id="btn-exec-query">
+    <div class="${tw.formActions}">
+      <button type="button" class="${tw.btnPrimary}" id="btn-exec-query">
         <i class="fa-solid fa-play"></i> Ejecutar
       </button>
     </div>
-    <pre id="sql-query-result" class="sql-result" hidden></pre>
+    <pre id="sql-query-result" class="${tw.sqlResult}" hidden></pre>
   `, () => {
     const execBtn = document.getElementById('btn-exec-query');
     const input = document.getElementById('sql-query-input');
@@ -321,11 +324,11 @@ export async function renderConexiones(container) {
   if (!conexiones.length) {
     stopPingTimer();
     container.innerHTML = `
-      <div class="empty-state glass">
-        <i class="fa-solid fa-database"></i>
-        <h3>Sin conexiones configuradas</h3>
-        <p>Agrega tu primera conexión a SQL Server o MySQL para comenzar.</p>
-        <button class="btn btn--primary" id="btn-first-add">
+      <div class="${tw.empty}">
+        <i class="fa-solid fa-database text-3xl text-slate-400"></i>
+        <h3 class="text-lg font-semibold text-slate-800">Sin conexiones configuradas</h3>
+        <p class="text-sm text-slate-500">Agrega tu primera conexión a SQL Server o MySQL para comenzar.</p>
+        <button class="${tw.btnPrimary}" id="btn-first-add">
           <i class="fa-solid fa-plus"></i> Agregar conexión
         </button>
       </div>
@@ -339,13 +342,13 @@ export async function renderConexiones(container) {
   const ids = conexiones.map((c) => c.id);
 
   container.innerHTML = `
-    <div class="conexiones-toolbar glass">
-      <label class="checkbox-group conexiones-toolbar__toggle">
+    <div class="${cx(tw.glass, 'mb-4 rounded-2xl px-4 py-3')}">
+      <label class="${tw.checkbox}">
         <input type="checkbox" id="auto-ping-toggle" ${autoPingEnabled ? 'checked' : ''}>
         Monitoreo automático de conexiones (cada 5 min)
       </label>
     </div>
-    <div class="card-grid" id="conexiones-grid">
+    <div class="${tw.cardGrid}" id="conexiones-grid">
       ${conexiones.map((c) => renderCard(c)).join('')}
     </div>
   `;

@@ -1,5 +1,6 @@
 import { api } from '../api.js';
 import { showToast, confirmDialog, openModal, showLoader } from '../utils.js';
+import { tw, cx } from '../ui.js';
 
 const VERSION_YEARS = [];
 for (let year = 2024; year <= 2030; year += 1) VERSION_YEARS.push(year);
@@ -27,31 +28,31 @@ function getUpdaterFormHtml(record) {
 
   return `
     <form id="updater-form" novalidate>
-      <div class="form-grid">
-        <div class="form-group">
-          <label for="updater-db">DB</label>
-          <select id="updater-db" required>
+      <div class="${tw.formGrid}">
+        <div class="${tw.formGroup}">
+          <label class="${tw.label}" for="updater-db">DB</label>
+          <select class="${tw.input}" id="updater-db" required>
             <option value="P" ${data.DB === 'P' ? 'selected' : ''}>P</option>
             <option value="T" ${data.DB === 'T' ? 'selected' : ''}>T</option>
           </select>
         </div>
-        <div class="form-group">
-          <label for="updater-version">Versión</label>
-          <select id="updater-version" required>
+        <div class="${tw.formGroup}">
+          <label class="${tw.label}" for="updater-version">Versión</label>
+          <select class="${tw.input}" id="updater-version" required>
             ${getVersionOptions(data.VERSION || new Date().getFullYear())}
           </select>
         </div>
-        <div class="form-group">
-          <label for="updater-fecha">Fecha</label>
-          <input type="date" id="updater-fecha" value="${escapeHtml(fecha)}" ${isEdit ? '' : 'readonly'}>
+        <div class="${tw.formGroup}">
+          <label class="${tw.label}" for="updater-fecha">Fecha</label>
+          <input class="${tw.input}" type="date" id="updater-fecha" value="${escapeHtml(fecha)}" ${isEdit ? '' : 'readonly'}>
         </div>
-        <div class="form-group form-group--full">
-          <label for="updater-qry">Query (QRY)</label>
-          <textarea id="updater-qry" rows="8" required placeholder="ALTER TABLE ...">${escapeHtml(data.QRY || '')}</textarea>
+        <div class="${tw.formGroupFull}">
+          <label class="${tw.label}" for="updater-qry">Query (QRY)</label>
+          <textarea class="${tw.input}" id="updater-qry" rows="8" required placeholder="ALTER TABLE ...">${escapeHtml(data.QRY || '')}</textarea>
         </div>
       </div>
-      <div class="form-actions">
-        <button type="submit" class="btn btn--primary"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+      <div class="${tw.formActions}">
+        <button type="submit" class="${tw.btnPrimary}"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
       </div>
     </form>
   `;
@@ -127,21 +128,21 @@ function filterUpdaterRecords(records, search) {
 function renderUpdaterRows(records) {
   if (!records.length) {
     const msg = updaterState.records.length ? 'No hay queries que coincidan' : 'No hay queries en UPDATE_QUERIES';
-    return `<tr><td colspan="6" class="table-empty">${msg}</td></tr>`;
+    return `<tr><td colspan="6" class="${cx(tw.td, tw.tableEmpty)}">${msg}</td></tr>`;
   }
 
   return records.map((r) => `
     <tr>
-      <td>${escapeHtml(r.ID)}</td>
-      <td><span class="table-tag">${escapeHtml(r.DB || '')}</span></td>
-      <td>${escapeHtml(r.VERSION)}</td>
-      <td>${escapeHtml(r.FECHA || '')}</td>
-      <td><code class="query-preview">${escapeHtml(r.QRY || '')}</code></td>
-      <td class="table-actions">
-        <button class="btn btn--ghost btn--sm btn-edit-updater" data-id="${escapeHtml(r.ID)}" title="Editar">
+      <td class="${tw.td}">${escapeHtml(r.ID)}</td>
+      <td class="${tw.td}"><span class="${tw.tableTag}">${escapeHtml(r.DB || '')}</span></td>
+      <td class="${tw.td}">${escapeHtml(r.VERSION)}</td>
+      <td class="${tw.td}">${escapeHtml(r.FECHA || '')}</td>
+      <td class="${tw.td}"><code class="${tw.queryPreview}">${escapeHtml(r.QRY || '')}</code></td>
+      <td class="${cx(tw.td, tw.tableActions)}">
+        <button class="${cx(tw.btnGhost, tw.btnSm)} btn-edit-updater" data-id="${escapeHtml(r.ID)}" title="Editar">
           <i class="fa-solid fa-pen"></i>
         </button>
-        <button class="btn btn--danger btn--sm btn-delete-updater" data-id="${escapeHtml(r.ID)}" title="Eliminar">
+        <button class="${cx(tw.btnDanger, tw.btnSm)} btn-delete-updater" data-id="${escapeHtml(r.ID)}" title="Eliminar">
           <i class="fa-solid fa-trash"></i>
         </button>
       </td>
@@ -188,7 +189,7 @@ function bindUpdaterEvents(container, records, reload) {
 function renderHostingBanner(hosting) {
   if (!hosting?.conexion) {
     return `
-      <div class="hosting-banner hosting-banner--warn glass">
+      <div class="${tw.hostingBannerWarn}">
         <i class="fa-solid fa-triangle-exclamation"></i>
         <span>Configura el <strong>Hosting principal</strong> en Configuraciones.</span>
       </div>
@@ -196,7 +197,7 @@ function renderHostingBanner(hosting) {
   }
 
   return `
-    <div class="hosting-banner glass">
+    <div class="${tw.hostingBanner}">
       <i class="fa-solid fa-server"></i>
       <span>Hosting: <strong>${escapeHtml(hosting.conexion.nombre)}</strong></span>
     </div>
@@ -225,17 +226,17 @@ export async function renderUpdater(container) {
   try {
     hosting = await api.getHostingStatus();
   } catch (err) {
-    container.innerHTML = `<div class="empty-state glass"><p>${escapeHtml(err.message)}</p></div>`;
+    container.innerHTML = `<div class="${tw.empty}"><p>${escapeHtml(err.message)}</p></div>`;
     return;
   }
 
   if (!hosting.principalConexionId) {
     container.innerHTML = `
       ${renderHostingBanner(hosting)}
-      <div class="empty-state glass">
-        <i class="fa-solid fa-database"></i>
-        <h3>Hosting principal no configurado</h3>
-        <p>Ve a Configuraciones y selecciona la conexión del hosting.</p>
+      <div class="${tw.empty}">
+        <i class="fa-solid fa-database text-3xl text-slate-400"></i>
+        <h3 class="text-lg font-semibold text-slate-800">Hosting principal no configurado</h3>
+        <p class="text-sm text-slate-500">Ve a Configuraciones y selecciona la conexión del hosting.</p>
       </div>
     `;
     return;
@@ -246,7 +247,7 @@ export async function renderUpdater(container) {
   } catch (err) {
     container.innerHTML = `
       ${renderHostingBanner(hosting)}
-      <div class="empty-state glass"><p>${escapeHtml(err.message)}</p></div>
+      <div class="${tw.empty}"><p>${escapeHtml(err.message)}</p></div>
     `;
     return;
   }
@@ -256,19 +257,19 @@ export async function renderUpdater(container) {
 
   container.innerHTML = `
     ${renderHostingBanner(hosting)}
-    <div class="table-panel glass">
-      <div class="table-panel__toolbar">
-        <input type="search" id="updater-search" class="table-search" placeholder="Buscar en query..." value="${escapeHtml(updaterState.search)}">
+    <div class="${tw.tablePanel}">
+      <div class="${tw.tableToolbar}">
+        <input type="search" id="updater-search" class="${cx(tw.input, 'max-w-md')}" placeholder="Buscar en query..." value="${escapeHtml(updaterState.search)}">
       </div>
-      <table class="data-table">
+      <table class="${tw.table}">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>DB</th>
-            <th>Versión</th>
-            <th>Fecha</th>
-            <th>Query</th>
-            <th>Acciones</th>
+            <th class="${tw.th}">ID</th>
+            <th class="${tw.th}">DB</th>
+            <th class="${tw.th}">Versión</th>
+            <th class="${tw.th}">Fecha</th>
+            <th class="${tw.th}">Query</th>
+            <th class="${tw.th}">Acciones</th>
           </tr>
         </thead>
         <tbody id="updater-tbody">

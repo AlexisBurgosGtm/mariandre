@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { showToast, confirmDialog } from '../utils.js';
+import { showToast, confirmDialog, showLoader } from '../utils.js';
 import { speakQueued } from '../tts.js';
 import {
   isWhatsAppTtsEnabled,
@@ -16,6 +16,7 @@ import {
   getWhatsAppOmitConfig,
   setWhatsAppOmittedWords,
 } from '../services/whatsapp.js';
+import { tw, cx } from '../ui.js';
 
 let pollTimer = null;
 let unsubscribeTts = null;
@@ -53,6 +54,19 @@ function statusLabel(status) {
   return labels[status] || status;
 }
 
+function statusClass(status) {
+  const map = {
+    ready: tw.statusOnline,
+    authenticated: 'font-semibold text-blue-600',
+    qr: tw.statusChecking,
+    initializing: tw.statusChecking,
+    error: tw.statusOffline,
+    disconnected: tw.statusOffline,
+    idle: tw.statusMuted,
+  };
+  return cx('text-sm', map[status] || tw.statusMuted);
+}
+
 function extractState(data = {}) {
   return {
     status: data.status ?? cachedState.status,
@@ -65,11 +79,11 @@ function extractState(data = {}) {
 function renderMessageRows(messages) {
   return messages.map((m) => `
     <tr data-id="${escapeHtml(m.id)}">
-      <td>${escapeHtml(getContactDisplayName(m))}</td>
-      <td>${escapeHtml(m.body || `[${m.type || 'mensaje'}]`)}</td>
-      <td>${formatTime(m.timestamp)}</td>
-      <td>
-        <button class="wa-inbox-btn btn-speak-msg" type="button" data-id="${escapeHtml(m.id)}" title="Escuchar">
+      <td class="${tw.td}">${escapeHtml(getContactDisplayName(m))}</td>
+      <td class="${tw.td}">${escapeHtml(m.body || `[${m.type || 'mensaje'}]`)}</td>
+      <td class="${tw.td}">${formatTime(m.timestamp)}</td>
+      <td class="${tw.td}">
+        <button class="${cx(tw.btnGhost, tw.btnSm)} btn-speak-msg" type="button" data-id="${escapeHtml(m.id)}" title="Escuchar">
           <i class="fa-solid fa-volume-high"></i>
         </button>
       </td>
@@ -119,10 +133,10 @@ function updateQrInSidebar(container, state) {
   if (showQr) {
     qrBox.hidden = false;
     qrBox.innerHTML = `
-      <div class="wa-sidebar-qr__content">
-        <h3><i class="fa-solid fa-qrcode"></i> Escanea con WhatsApp</h3>
-        <p>WhatsApp → Dispositivos vinculados → Vincular dispositivo</p>
-        <img src="${state.qr}" alt="Código QR WhatsApp" class="wa-qr__image">
+      <div class="space-y-3 text-center">
+        <h3 class="flex items-center justify-center gap-2 text-sm font-semibold text-slate-800"><i class="fa-solid fa-qrcode"></i> Escanea con WhatsApp</h3>
+        <p class="text-xs text-slate-500">WhatsApp → Dispositivos vinculados → Vincular dispositivo</p>
+        <img src="${state.qr}" alt="Código QR WhatsApp" class="mx-auto max-w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
       </div>
     `;
   } else {
@@ -146,15 +160,15 @@ function updateView(container, state, messages) {
 
   if (statusEl) {
     statusEl.textContent = statusLabel(state.status);
-    statusEl.className = `wa-status wa-status--${state.status}`;
+    statusEl.className = statusClass(state.status);
   }
 
   if (userEl) {
     if (state.status === 'error' && state.error) {
       userEl.textContent = `Error: ${state.error}`;
-      userEl.className = 'wa-user-info wa-user-info--error';
+      userEl.className = 'text-sm text-red-600';
     } else {
-      userEl.className = 'wa-user-info';
+      userEl.className = 'text-sm text-slate-500';
       userEl.textContent = state.info?.pushname
         ? `Sesión: ${state.info.pushname} (${state.info.wid || ''})`
         : '';
@@ -243,72 +257,72 @@ function scheduleOmitSave(fn) {
 
 export async function renderWhatsapp(container) {
   pageContainer = container;
+  showLoader(container, 'Cargando WhatsApp...');
   await loadWhatsAppConfig();
   const ttsOn = isWhatsAppTtsEnabled();
   const senderOnly = isWhatsAppTtsSenderOnly();
   const omitConfig = getWhatsAppOmitConfig();
 
   container.innerHTML = `
-    <div class="wa-layout">
-      <div class="wa-sidebar-panel glass">
-        <div class="wa-panel-header">
-          <h2><i class="fa-brands fa-whatsapp"></i> WhatsApp</h2>
-          <span class="wa-status wa-status--idle" id="wa-connection-status">Sin iniciar</span>
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
+      <div class="${cx(tw.panel, 'space-y-4')}">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="flex items-center gap-2 text-lg font-semibold text-slate-800"><i class="fa-brands fa-whatsapp text-green-600"></i> WhatsApp</h2>
+          <span class="${statusClass('idle')}" id="wa-connection-status">Sin iniciar</span>
         </div>
-        <p class="wa-user-info" id="wa-user-info"></p>
+        <p class="text-sm text-slate-500" id="wa-user-info"></p>
 
-        <div class="wa-actions">
-          <button class="btn btn--primary" id="wa-start-btn" type="button">
+        <div class="flex flex-wrap gap-2">
+          <button class="${tw.btnPrimary}" id="wa-start-btn" type="button">
             <i class="fa-brands fa-whatsapp"></i> Iniciar sesión
           </button>
-          <button class="btn btn--danger" id="wa-logout-btn" type="button" hidden>
+          <button class="${tw.btnDanger}" id="wa-logout-btn" type="button" hidden>
             <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión
           </button>
         </div>
 
-        <label class="wa-tts-toggle checkbox-group">
+        <label class="${tw.checkbox}">
           <input type="checkbox" id="wa-tts-toggle" ${ttsOn ? 'checked' : ''}>
           Leer mensajes entrantes en voz alta
         </label>
 
-        <label class="wa-tts-toggle checkbox-group">
+        <label class="${tw.checkbox}">
           <input type="checkbox" id="wa-tts-sender-only" ${senderOnly ? 'checked' : ''}>
           Solo anunciar remitente (sin leer el mensaje)
         </label>
 
-        <div class="wa-omit-fields">
-          <label class="form-group form-group--full">
-            <span>Palabras omitidas</span>
-            <input type="text" id="wa-omit-words" value="${escapeHtml(omitConfig.omittedWords)}" placeholder="promo, oferta, descuento">
-            <small>Separadas por coma. No se leerán al anunciar mensajes.</small>
-          </label>
+        <div class="${tw.formGroupFull}">
+          <label class="${tw.label}" for="wa-omit-words">Palabras omitidas</label>
+          <input class="${tw.input}" type="text" id="wa-omit-words" value="${escapeHtml(omitConfig.omittedWords)}" placeholder="promo, oferta, descuento">
+          <small class="mt-1 text-xs text-slate-500">Separadas por coma. No se leerán al anunciar mensajes.</small>
         </div>
 
-        <div id="wa-sidebar-qr" class="wa-sidebar-qr" hidden></div>
+        <div id="wa-sidebar-qr" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-4" hidden></div>
       </div>
 
-      <div class="wa-inbox">
-        <div class="wa-inbox__header">
-          <h3><i class="fa-solid fa-inbox"></i> Mensajes sin leer</h3>
-          <button class="wa-inbox-btn" id="wa-refresh-btn" type="button" title="Refrescar">
+      <div class="${cx(tw.panel, 'flex min-h-[28rem] flex-col')}">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 class="flex items-center gap-2 text-base font-semibold text-slate-800"><i class="fa-solid fa-inbox"></i> Mensajes sin leer</h3>
+          <button class="${cx(tw.btnGhost, tw.btnSm)}" id="wa-refresh-btn" type="button" title="Refrescar">
             <i class="fa-solid fa-rotate"></i> Refrescar
           </button>
         </div>
-        <div class="wa-inbox__body">
-          <div id="wa-messages-loading" class="wa-inbox-loading" hidden>
-            <i class="fa-solid fa-spinner fa-spin"></i> Cargando mensajes...
+        <div class="relative min-h-0 flex-1 overflow-auto">
+          <div id="wa-messages-loading" class="flex flex-col items-center justify-center gap-3 py-12 text-slate-500" hidden>
+            <i class="fa-solid fa-spinner fa-spin text-2xl"></i>
+            <span class="text-sm">Cargando mensajes...</span>
           </div>
-          <div id="wa-messages-empty" class="wa-inbox-empty">
-            <i class="fa-brands fa-whatsapp"></i>
-            <p>Los mensajes sin leer aparecerán aquí</p>
+          <div id="wa-messages-empty" class="flex flex-col items-center justify-center gap-3 py-16 text-center text-slate-500">
+            <i class="fa-brands fa-whatsapp text-3xl text-slate-300"></i>
+            <p class="text-sm">Los mensajes sin leer aparecerán aquí</p>
           </div>
-          <table id="wa-messages-table" class="wa-inbox-table" hidden>
+          <table id="wa-messages-table" class="${tw.table}" hidden>
             <thead>
               <tr>
-                <th>Remitente</th>
-                <th>Mensaje</th>
-                <th>Fecha</th>
-                <th></th>
+                <th class="${tw.th}">Remitente</th>
+                <th class="${tw.th}">Mensaje</th>
+                <th class="${tw.th}">Fecha</th>
+                <th class="${tw.th}"></th>
               </tr>
             </thead>
             <tbody id="wa-messages-tbody"></tbody>

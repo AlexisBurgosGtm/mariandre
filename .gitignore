@@ -8,5 +8,5 @@ Thumbs.db
 .wwebjs_cache/
 google-credentials.json
 google-tokens.json
-build/icon.ico
 build/puppeteer-cache/
+puppeteer-cache/

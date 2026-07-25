@@ -1,6 +1,6 @@
 /**
  * Descarga Chrome for Testing y lo guarda en build/puppeteer-cache
- * para incluirlo en el instalador (extraResources) y no depender de internet en otras PCs.
+ * para usarlo con WhatsApp sin depender de una descarga en cada arranque.
  */
 const fs = require('fs');
 const path = require('path');

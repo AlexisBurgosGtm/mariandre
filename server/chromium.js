@@ -38,14 +38,8 @@ function findChromeExecutable(rootDir, depth = 0) {
 }
 
 function getBundledCacheDir() {
-  if (appPaths.getIsPackaged() && process.resourcesPath) {
-    const bundled = path.join(process.resourcesPath, 'puppeteer-cache');
-    if (fsSync.existsSync(bundled)) return bundled;
-  }
-
-  const devBundle = path.join(appPaths.getBundleDir(), 'build', 'puppeteer-cache');
-  if (fsSync.existsSync(devBundle)) return devBundle;
-
+  const cacheDir = path.join(appPaths.getBundleDir(), 'build', 'puppeteer-cache');
+  if (fsSync.existsSync(cacheDir)) return cacheDir;
   return null;
 }
 
@@ -117,7 +111,7 @@ async function resolveChromiumExecutable() {
   }
 
   throw new Error(
-    'Chromium no está disponible. Reinstala la aplicación o conéctate a internet para la descarga inicial.'
+    'Chromium no está disponible. Ejecuta `npm run chromium` o conéctate a internet para la descarga inicial.'
   );
 }
 

@@ -1,12 +1,12 @@
 # MariAndre
 
-Aplicación Electron con interfaz SPA (vanilla JavaScript) para gestionar conexiones a bases de datos **SQL Server** y **MySQL**.
+Aplicación web (Express + SPA en vanilla JavaScript) para gestionar conexiones a bases de datos **SQL Server** y **MySQL**, WhatsApp, Google Tasks y más.
 
 ## Características
 
 - Interfaz SPA con tema azul oscuro y efectos glass
 - Iconos Font Awesome Free
-- Servidor web en puerto **9003** (accesible desde Electron y navegador)
+- Servidor web en puerto **9006** (configurable con `PORT`)
 - Gestión CRUD de conexiones en `conexiones.json`
 - Prueba de conexión para MSSQL y MySQL
 
@@ -16,16 +16,26 @@ Aplicación Electron con interfaz SPA (vanilla JavaScript) para gestionar conexi
 npm install
 ```
 
+Opcional, para WhatsApp (predescargar Chromium):
+
+```bash
+npm run chromium
+```
+
 ## Ejecutar
 
 ```bash
 npm start
 ```
 
-La aplicación abrirá una ventana Electron y el servicio estará disponible en:
+Abre el navegador en [http://localhost:9006](http://localhost:9006).
 
-- **Electron**: ventana integrada
-- **Navegador**: [http://localhost:9003](http://localhost:9003)
+Variables de entorno opcionales:
+
+| Variable | Descripción | Default |
+|----------|-------------|---------|
+| `PORT` | Puerto del servidor | `9006` |
+| `DATA_DIR` | Carpeta de datos JSON / auth | raíz del proyecto |
 
 ## Estructura de conexiones (`conexiones.json`)
 
@@ -57,8 +67,7 @@ Cada conexión incluye el campo `tipo` para identificar el motor:
 
 ## Tecnologías
 
-- Electron
-- Express
-- mssql
-- mysql2
+- Node.js + Express
+- mssql / mysql2
+- whatsapp-web.js
 - Font Awesome 6

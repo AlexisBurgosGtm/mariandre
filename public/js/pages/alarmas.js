@@ -1,6 +1,7 @@
 import { api } from '../api.js';
 import { showToast, confirmDialog, openModal, showLoader } from '../utils.js';
 import { refreshAlarmas } from '../services/alarmas.js';
+import { tw, cx } from '../ui.js';
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -35,26 +36,26 @@ function getAlarmaFormHtml(alarma) {
 
   return `
     <form id="alarma-form" novalidate>
-      <div class="form-grid form-grid--alarm-datetime">
-        <div class="form-group">
-          <label for="alarma-fecha">Fecha</label>
-          <input type="date" id="alarma-fecha" required value="${escapeHtml(a.fecha || today)}">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-[1.4fr_0.8fr_0.8fr]">
+        <div class="${tw.formGroup}">
+          <label class="${tw.label}" for="alarma-fecha">Fecha</label>
+          <input class="${tw.input}" type="date" id="alarma-fecha" required value="${escapeHtml(a.fecha || today)}">
         </div>
-        <div class="form-group form-group--time">
-          <label for="alarma-hora">Hora</label>
-          <select id="alarma-hora" required>${getHourOptions(a.hora ?? new Date().getHours())}</select>
+        <div class="${tw.formGroup}">
+          <label class="${tw.label}" for="alarma-hora">Hora</label>
+          <select class="${tw.input}" id="alarma-hora" required>${getHourOptions(a.hora ?? new Date().getHours())}</select>
         </div>
-        <div class="form-group form-group--time">
-          <label for="alarma-minuto">Min</label>
-          <select id="alarma-minuto" required>${getMinuteOptions(a.minuto ?? new Date().getMinutes())}</select>
+        <div class="${tw.formGroup}">
+          <label class="${tw.label}" for="alarma-minuto">Min</label>
+          <select class="${tw.input}" id="alarma-minuto" required>${getMinuteOptions(a.minuto ?? new Date().getMinutes())}</select>
         </div>
-        <div class="form-group form-group--full">
-          <label for="alarma-descripcion">Descripción</label>
-          <textarea id="alarma-descripcion" rows="3" required placeholder="Motivo de la alarma">${escapeHtml(a.descripcion || '')}</textarea>
+        <div class="${cx(tw.formGroupFull, 'sm:col-span-3')}">
+          <label class="${tw.label}" for="alarma-descripcion">Descripción</label>
+          <textarea class="${tw.input}" id="alarma-descripcion" rows="3" required placeholder="Motivo de la alarma">${escapeHtml(a.descripcion || '')}</textarea>
         </div>
       </div>
-      <div class="form-actions">
-        <button type="submit" class="btn btn--primary"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+      <div class="${tw.formActions}">
+        <button type="submit" class="${tw.btnPrimary}"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
       </div>
     </form>
   `;
@@ -158,20 +159,20 @@ function renderAlarmasTable(alarmas) {
   const fired = alarmas.filter((a) => a.disparada);
 
   const renderRow = (alarma) => `
-    <tr class="${alarma.disparada ? 'alarma-row--fired' : ''}">
-      <td>${escapeHtml(formatAlarmDateTime(alarma))}</td>
-      <td>${escapeHtml(alarma.descripcion)}</td>
-      <td>
-        <span class="table-tag ${alarma.disparada ? 'table-tag--muted' : 'table-tag--ok'}">
+    <tr class="${alarma.disparada ? 'opacity-60' : ''}">
+      <td class="${tw.td}">${escapeHtml(formatAlarmDateTime(alarma))}</td>
+      <td class="${tw.td}">${escapeHtml(alarma.descripcion)}</td>
+      <td class="${tw.td}">
+        <span class="${alarma.disparada ? tw.tableTagMuted : tw.tableTagOk}">
           <i class="fa-solid ${alarma.disparada ? 'fa-bell-slash' : 'fa-bell'}"></i>
           ${alarma.disparada ? 'Disparada' : 'Pendiente'}
         </span>
       </td>
-      <td class="table-actions">
-        <button class="btn btn--ghost btn--sm btn-edit" data-id="${alarma.id}" title="${alarma.disparada ? 'Reactivar' : 'Editar'}">
+      <td class="${cx(tw.td, tw.tableActions)}">
+        <button class="${cx(tw.btnGhost, tw.btnSm)} btn-edit" data-id="${alarma.id}" title="${alarma.disparada ? 'Reactivar' : 'Editar'}">
           <i class="fa-solid fa-pen"></i>
         </button>
-        <button class="btn btn--danger btn--sm btn-delete" data-id="${alarma.id}" title="Eliminar">
+        <button class="${cx(tw.btnDanger, tw.btnSm)} btn-delete" data-id="${alarma.id}" title="Eliminar">
           <i class="fa-solid fa-trash"></i>
         </button>
       </td>
@@ -180,11 +181,11 @@ function renderAlarmasTable(alarmas) {
 
   if (!alarmas.length) {
     return `
-      <div class="empty-state glass">
-        <i class="fa-solid fa-bell"></i>
-        <h3>Sin alarmas</h3>
-        <p>Agrega una alarma con fecha, hora y descripción. Al llegar el momento escucharás un aviso.</p>
-        <button class="btn btn--primary" id="btn-first-alarma" type="button">
+      <div class="${tw.empty}">
+        <i class="fa-solid fa-bell text-3xl text-slate-400"></i>
+        <h3 class="text-lg font-semibold text-slate-800">Sin alarmas</h3>
+        <p class="text-sm text-slate-500">Agrega una alarma con fecha, hora y descripción. Al llegar el momento escucharás un aviso.</p>
+        <button class="${tw.btnPrimary}" id="btn-first-alarma" type="button">
           <i class="fa-solid fa-plus"></i> Agregar alarma
         </button>
       </div>
@@ -192,14 +193,14 @@ function renderAlarmasTable(alarmas) {
   }
 
   return `
-    <div class="table-panel glass">
-      <table class="data-table">
+    <div class="${tw.tablePanel}">
+      <table class="${tw.table}">
         <thead>
           <tr>
-            <th>Fecha y hora</th>
-            <th>Descripción</th>
-            <th>Estado</th>
-            <th>Acciones</th>
+            <th class="${tw.th}">Fecha y hora</th>
+            <th class="${tw.th}">Descripción</th>
+            <th class="${tw.th}">Estado</th>
+            <th class="${tw.th}">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -218,7 +219,7 @@ export async function renderAlarmas(container) {
   try {
     alarmas = await api.getAlarmas();
   } catch (err) {
-    container.innerHTML = `<div class="empty-state glass"><p>${escapeHtml(err.message)}</p></div>`;
+    container.innerHTML = `<div class="${tw.empty}"><p>${escapeHtml(err.message)}</p></div>`;
     return;
   }
 

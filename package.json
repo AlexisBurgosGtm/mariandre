@@ -1,92 +1,33 @@
 {
-  "name": "electron-asistant",
-  "version": "1.0.0",
-  "description": "Asistente Electron con gestión de conexiones SQL Server y MySQL",
-  "main": "main.js",
-  "scripts": {
-    "start": "electron .",
-    "dev": "electron .",
-    "icons": "node scripts/generate-icons.js",
-    "chromium": "node scripts/install-chromium.js",
-    "prebuild": "npm run icons && npm run chromium",
-    "prebuild:win": "npm run icons && npm run chromium",
-    "build": "electron-builder",
-    "build:win": "electron-builder --win"
-  },
-  "keywords": [
-    "electron",
-    "mysql",
-    "mssql",
-    "spa"
-  ],
-  "author": "",
-  "license": "MIT",
-  "dependencies": {
-    "express": "^4.21.2",
-    "googleapis": "^144.0.0",
-    "mssql": "^11.0.1",
-    "mysql2": "^3.12.0",
-    "qrcode": "^1.5.4",
-    "whatsapp-web.js": "^1.34.7"
-  },
-  "devDependencies": {
-    "electron": "^34.0.0",
-    "electron-builder": "^25.1.8",
-    "png-to-ico": "^2.1.8",
-    "sharp": "^0.34.5"
-  },
-  "build": {
-    "appId": "com.mariandre.app",
-    "productName": "MariAndre",
-    "icon": "build/icon.ico",
-    "npmRebuild": false,
-    "directories": {
-      "output": "dist"
+    "name": "mariandre",
+    "version": "1.0.0",
+    "description": "Asistente web con gestión de conexiones SQL Server y MySQL",
+    "main": "server/index.js",
+    "scripts": {
+        "start": "node server/index.js",
+        "dev": "node server/index.js",
+        "icons": "node scripts/generate-icons.js",
+        "chromium": "node scripts/install-chromium.js",
+        "test": "nodemon server/index.js"
     },
-    "files": [
-      "main.js",
-      "electronBridge.js",
-      "server/**/*",
-      "public/**/*",
-      "build/icon.ico",
-      "conexiones.json",
-      "mantenimiento.json",
-      "config.json",
-      "servicios-online.json",
-      "google-credentials.json.example",
-      "package.json"
+    "keywords": [
+        "web",
+        "mysql",
+        "mssql",
+        "spa"
     ],
-    "asarUnpack": [
-      "node_modules/whatsapp-web.js/**/*",
-      "node_modules/puppeteer/**/*",
-      "node_modules/puppeteer-core/**/*",
-      "node_modules/@puppeteer/browsers/**/*",
-      "node_modules/ws/**/*",
-      "node_modules/mssql/**/*",
-      "node_modules/tedious/**/*",
-      "node_modules/mysql2/**/*"
-    ],
-    "win": {
-      "target": [
-        "nsis"
-      ],
-      "icon": "build/icon.ico"
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "express": "^4.21.2",
+        "mssql": "^11.0.1",
+        "mysql2": "^3.12.0",
+        "nodemon": "^3.1.14",
+        "qrcode": "^1.5.4",
+        "whatsapp-web.js": "^1.34.7"
     },
-    "extraResources": [
-      {
-        "from": "build/puppeteer-cache",
-        "to": "puppeteer-cache",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
-      "installerHeaderIcon": "build/icon.ico"
+    "devDependencies": {
+        "png-to-ico": "^3.0.2",
+        "sharp": "^0.35.3"
     }
-  }
 }

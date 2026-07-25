@@ -1,5 +1,7 @@
 import { api } from '../api.js';
 import { showToast, showLoader } from '../utils.js';
+import { getStoredTheme, renderThemeSelector, bindThemeSelector } from '../themes.js';
+import { tw, cx } from '../ui.js';
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -19,45 +21,51 @@ export async function renderConfiguraciones(container) {
       api.getConexiones(),
     ]);
   } catch (err) {
-    container.innerHTML = `<div class="empty-state glass"><p>${escapeHtml(err.message)}</p></div>`;
+    container.innerHTML = `<div class="${tw.empty}"><p>${escapeHtml(err.message)}</p></div>`;
     return;
   }
 
   const selectedId = config?.hosting?.principalConexionId || '';
 
   container.innerHTML = `
-    <div class="settings-panel glass">
-      <div class="settings-section">
-        <h3><i class="fa-solid fa-server"></i> Hosting principal</h3>
-        <p class="settings-section__desc">
-          Selecciona la conexión que usarán las secciones <strong>Soporte Clientes</strong> y <strong>Updater</strong>.
-        </p>
+    <div class="space-y-4">
+      <div class="${tw.panel}">
+        <div class="space-y-2">
+          <h3 class="flex items-center gap-2 text-base font-semibold text-slate-800"><i class="fa-solid fa-server"></i> Hosting principal</h3>
+          <p class="text-sm text-slate-500">
+            Selecciona la conexión que usarán las secciones <strong>Soporte Clientes</strong> y <strong>Updater</strong>.
+          </p>
 
-        ${!conexiones.length ? `
-          <div class="empty-state glass" style="margin-top:1rem;padding:1.5rem;">
-            <p>No hay conexiones configuradas. Agrega una en la sección Conexiones.</p>
-          </div>
-        ` : `
-          <div class="form-group form-group--full">
-            <label for="hosting-principal">Conexión de hosting</label>
-            <select id="hosting-principal">
-              <option value="">— Seleccionar conexión —</option>
-              ${conexiones.map((c) => `
-                <option value="${escapeHtml(c.id)}" ${String(c.id) === String(selectedId) ? 'selected' : ''}>
-                  ${escapeHtml(c.nombre)} (${escapeHtml(c.tipo)} — ${escapeHtml(c.host)})
-                </option>
-              `).join('')}
-            </select>
-          </div>
-          <div class="form-actions">
-            <button type="button" class="btn btn--primary" id="btn-save-hosting">
-              <i class="fa-solid fa-floppy-disk"></i> Guardar configuración
-            </button>
-          </div>
-        `}
+          ${!conexiones.length ? `
+            <div class="${cx(tw.empty, 'mt-4 !p-6')}">
+              <p>No hay conexiones configuradas. Agrega una en la sección Conexiones.</p>
+            </div>
+          ` : `
+            <div class="${cx(tw.formGroupFull, 'mt-3')}">
+              <label class="${tw.label}" for="hosting-principal">Conexión de hosting</label>
+              <select class="${tw.input}" id="hosting-principal">
+                <option value="">— Seleccionar conexión —</option>
+                ${conexiones.map((c) => `
+                  <option value="${escapeHtml(c.id)}" ${String(c.id) === String(selectedId) ? 'selected' : ''}>
+                    ${escapeHtml(c.nombre)} (${escapeHtml(c.tipo)} — ${escapeHtml(c.host)})
+                  </option>
+                `).join('')}
+              </select>
+            </div>
+            <div class="${tw.formActions}">
+              <button type="button" class="${tw.btnPrimary}" id="btn-save-hosting">
+                <i class="fa-solid fa-floppy-disk"></i> Guardar configuración
+              </button>
+            </div>
+          `}
+        </div>
       </div>
+
+      ${renderThemeSelector(getStoredTheme())}
     </div>
   `;
+
+  bindThemeSelector(container);
 
   const saveBtn = container.querySelector('#btn-save-hosting');
   if (!saveBtn) return;

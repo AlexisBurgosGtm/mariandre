@@ -4,12 +4,10 @@ const express = require('express');
 const sql = require('mssql');
 const mysql = require('mysql2/promise');
 const whatsapp = require('./whatsapp');
-const googleTasks = require('./googleTasks');
 const hostingDb = require('./hostingDb');
-const cursorApi = require('./cursorApi');
 const appPaths = require('./appPaths');
 
-const PORT = 9006;
+const PORT = Number(process.env.PORT) || 9006;
 
 let server = null;
 
@@ -62,23 +60,6 @@ async function readAlarmas() {
 
 async function writeAlarmas(alarmas) {
   await fs.writeFile(appPaths.alarmasPath(), JSON.stringify(alarmas, null, 2), 'utf-8');
-}
-
-async function readCursorApiConfig() {
-  try {
-    const data = await fs.readFile(appPaths.cursorApiPath(), 'utf-8');
-    return JSON.parse(data);
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      await writeCursorApiConfig({});
-      return {};
-    }
-    throw err;
-  }
-}
-
-async function writeCursorApiConfig(config) {
-  await fs.writeFile(appPaths.cursorApiPath(), JSON.stringify(config, null, 2), 'utf-8');
 }
 
 function parseAlarmaTime(body) {
@@ -942,15 +923,6 @@ function createApp() {
     res.json(appPaths.getAppInfo());
   });
 
-  app.post('/api/window/hide-to-tray', (_req, res) => {
-    try {
-      require('../electronBridge').emit('hide-to-tray');
-      res.json({ ok: true });
-    } catch {
-      res.status(503).json({ error: 'Solo disponible en la app de escritorio' });
-    }
-  });
-
   app.get('/api/whatsapp/status', (_req, res) => {
     res.json(whatsapp.getPublicState());
   });
@@ -985,78 +957,6 @@ function createApp() {
     try {
       const result = await whatsapp.logoutSession();
       res.json(result);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.get('/api/google/status', async (_req, res) => {
-    try {
-      await googleTasks.ensureClient();
-      res.json(await googleTasks.getStatus());
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.post('/api/google/credentials', async (req, res) => {
-    try {
-      const status = await googleTasks.saveCredentials(req.body || {});
-      res.json(status);
-    } catch (err) {
-      res.status(400).json({ error: err.message });
-    }
-  });
-
-  app.get('/api/google/auth-url', async (_req, res) => {
-    try {
-      const url = await googleTasks.getAuthUrl();
-      res.json({ url });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.get('/api/google/callback', async (req, res) => {
-    try {
-      if (!req.query.code) {
-        return res.status(400).send('Autorización cancelada o código no recibido.');
-      }
-      await googleTasks.handleCallback(req.query.code);
-      res.send(`
-        <!DOCTYPE html>
-        <html lang="es"><head><meta charset="UTF-8"><title>Google Tasks</title>
-        <style>body{font-family:sans-serif;background:#0a1628;color:#e8f0fe;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
-        .box{text-align:center;padding:2rem;border:1px solid rgba(100,160,255,.2);border-radius:12px;background:rgba(15,31,58,.9)}</style></head>
-        <body><div class="box"><h2>Cuenta conectada</h2><p>Ya puedes volver a la aplicación y pulsar Actualizar en Tareas.</p></div></body></html>
-      `);
-    } catch (err) {
-      res.status(500).send(`Error: ${err.message}`);
-    }
-  });
-
-  app.get('/api/google/tasks', async (_req, res) => {
-    try {
-      const data = await googleTasks.getAllTasksGrouped();
-      res.json(data);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.post('/api/google/tasks/:listId/:taskId/complete', async (req, res) => {
-    try {
-      const result = await googleTasks.completeTask(req.params.listId, req.params.taskId);
-      res.json(result);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.post('/api/google/logout', async (_req, res) => {
-    try {
-      await googleTasks.logout();
-      res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -1147,54 +1047,6 @@ function createApp() {
     }
   });
 
-  app.get('/api/cursor/status', async (_req, res) => {
-    try {
-      const config = await readCursorApiConfig();
-      res.json({
-        hasApiKey: Boolean(config.apiKey),
-        apiKeyMasked: cursorApi.maskApiKey(config.apiKey || ''),
-      });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.post('/api/cursor/credentials', async (req, res) => {
-    try {
-      const apiKey = String(req.body?.apiKey || '').trim();
-      if (!apiKey) {
-        return res.status(400).json({ error: 'El API key es obligatorio' });
-      }
-      await cursorApi.validateApiKey(apiKey);
-      await writeCursorApiConfig({ apiKey });
-      res.json({ ok: true, apiKeyMasked: cursorApi.maskApiKey(apiKey) });
-    } catch (err) {
-      res.status(400).json({ error: err.message });
-    }
-  });
-
-  app.delete('/api/cursor/credentials', async (_req, res) => {
-    try {
-      await writeCursorApiConfig({});
-      res.json({ ok: true });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.get('/api/cursor/usage', async (_req, res) => {
-    try {
-      const config = await readCursorApiConfig();
-      if (!config.apiKey) {
-        return res.status(400).json({ error: 'Configura tu API key de Cursor' });
-      }
-      const usage = await cursorApi.getUsage(config.apiKey);
-      res.json(usage);
-    } catch (err) {
-      res.status(err.status === 401 ? 401 : 500).json({ error: err.message });
-    }
-  });
-
   app.get('*', (_req, res) => {
     res.sendFile(path.join(appPaths.publicPath(), 'index.html'));
   });
@@ -1211,9 +1063,6 @@ function startServer() {
     const app = createApp();
     server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`Servidor activo en http://localhost:${PORT}`);
-      googleTasks.loadClient(PORT).catch((err) => {
-        console.warn('Google Tasks:', err.message);
-      });
       whatsapp.startSession().catch((err) => {
         console.warn('WhatsApp auto-start:', err.message);
       });
@@ -1239,3 +1088,24 @@ function stopServer() {
 }
 
 module.exports = { startServer, stopServer, PORT };
+
+if (require.main === module) {
+  (async () => {
+    try {
+      appPaths.initPaths();
+      await appPaths.ensureDataFiles();
+      await startServer();
+    } catch (err) {
+      console.error('No se pudo iniciar el servidor:', err);
+      process.exit(1);
+    }
+  })();
+
+  const shutdown = async () => {
+    await stopServer();
+    process.exit(0);
+  };
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+}

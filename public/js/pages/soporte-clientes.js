@@ -1,5 +1,6 @@
 import { api } from '../api.js';
 import { showToast, confirmDialog, openModal, showLoader } from '../utils.js';
+import { tw, cx } from '../ui.js';
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -17,37 +18,37 @@ function getSoporteFormHtml(record, tokens) {
 
   return `
     <form id="soporte-form" novalidate>
-      <div class="form-grid">
-        <div class="form-group form-group--full">
-          <label for="soporte-token">Empresa (TOKEN)</label>
-          <select id="soporte-token" required>
+      <div class="${tw.formGrid}">
+        <div class="${tw.formGroupFull}">
+          <label class="${tw.label}" for="soporte-token">Empresa (TOKEN)</label>
+          <select class="${tw.input}" id="soporte-token" required>
             <option value="">— Seleccionar empresa —</option>
             ${tokenOptions}
           </select>
         </div>
-        <div class="form-group">
-          <label for="soporte-sucursal">Sucursal</label>
-          <input type="text" id="soporte-sucursal" value="${escapeHtml(data.SUCURSAL || '')}">
+        <div class="${tw.formGroup}">
+          <label class="${tw.label}" for="soporte-sucursal">Sucursal</label>
+          <input class="${tw.input}" type="text" id="soporte-sucursal" value="${escapeHtml(data.SUCURSAL || '')}">
         </div>
-        <div class="form-group">
-          <label for="soporte-tipo">Tipo</label>
-          <select id="soporte-tipo">
+        <div class="${tw.formGroup}">
+          <label class="${tw.label}" for="soporte-tipo">Tipo</label>
+          <select class="${tw.input}" id="soporte-tipo">
             <option value="">— Seleccionar —</option>
             <option value="SERVER" ${data.TIPO === 'SERVER' ? 'selected' : ''}>SERVER</option>
             <option value="OPER" ${data.TIPO === 'OPER' ? 'selected' : ''}>OPER</option>
           </select>
         </div>
-        <div class="form-group">
-          <label for="soporte-anydesk">AnyDesk</label>
-          <input type="text" id="soporte-anydesk" value="${escapeHtml(data.ANYDESK || '')}">
+        <div class="${tw.formGroup}">
+          <label class="${tw.label}" for="soporte-anydesk">AnyDesk</label>
+          <input class="${tw.input}" type="text" id="soporte-anydesk" value="${escapeHtml(data.ANYDESK || '')}">
         </div>
-        <div class="form-group">
-          <label for="soporte-pass">Contraseña</label>
-          <input type="text" id="soporte-pass" value="${escapeHtml(data.PASS || '')}">
+        <div class="${tw.formGroup}">
+          <label class="${tw.label}" for="soporte-pass">Contraseña</label>
+          <input class="${tw.input}" type="text" id="soporte-pass" value="${escapeHtml(data.PASS || '')}">
         </div>
       </div>
-      <div class="form-actions">
-        <button type="submit" class="btn btn--primary"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+      <div class="${tw.formActions}">
+        <button type="submit" class="${tw.btnPrimary}"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
       </div>
     </form>
   `;
@@ -127,22 +128,22 @@ function filterSoporteRecords(records, search, tokenMap) {
 function renderSoporteRows(records, tokenMap) {
   if (!records.length) {
     const msg = soporteState.records.length ? 'No hay registros que coincidan' : 'No hay registros en SOPORTE_ANYDESK';
-    return `<tr><td colspan="7" class="table-empty">${msg}</td></tr>`;
+    return `<tr><td colspan="7" class="${cx(tw.td, tw.tableEmpty)}">${msg}</td></tr>`;
   }
 
   return records.map((r) => `
     <tr>
-      <td>${escapeHtml(tokenMap[r.TOKEN] || '—')}</td>
-      <td><code>${escapeHtml(r.TOKEN || '')}</code></td>
-      <td>${escapeHtml(r.SUCURSAL || '')}</td>
-      <td>${escapeHtml(r.TIPO || '')}</td>
-      <td>${escapeHtml(r.ANYDESK || '')}</td>
-      <td>${escapeHtml(r.PASS || '')}</td>
-      <td class="table-actions">
-        <button class="btn btn--ghost btn--sm btn-edit-soporte" data-id="${escapeHtml(r.ID)}" title="Editar">
+      <td class="${tw.td}">${escapeHtml(tokenMap[r.TOKEN] || '—')}</td>
+      <td class="${tw.td}"><code class="${tw.code}">${escapeHtml(r.TOKEN || '')}</code></td>
+      <td class="${tw.td}">${escapeHtml(r.SUCURSAL || '')}</td>
+      <td class="${tw.td}">${escapeHtml(r.TIPO || '')}</td>
+      <td class="${tw.td}">${escapeHtml(r.ANYDESK || '')}</td>
+      <td class="${tw.td}">${escapeHtml(r.PASS || '')}</td>
+      <td class="${cx(tw.td, tw.tableActions)}">
+        <button class="${cx(tw.btnGhost, tw.btnSm)} btn-edit-soporte" data-id="${escapeHtml(r.ID)}" title="Editar">
           <i class="fa-solid fa-pen"></i>
         </button>
-        <button class="btn btn--danger btn--sm btn-delete-soporte" data-id="${escapeHtml(r.ID)}" title="Eliminar">
+        <button class="${cx(tw.btnDanger, tw.btnSm)} btn-delete-soporte" data-id="${escapeHtml(r.ID)}" title="Eliminar">
           <i class="fa-solid fa-trash"></i>
         </button>
       </td>
@@ -189,7 +190,7 @@ function bindSoporteEvents(container, records, tokens, reload) {
 function renderHostingBanner(hosting) {
   if (!hosting?.conexion) {
     return `
-      <div class="hosting-banner hosting-banner--warn glass">
+      <div class="${tw.hostingBannerWarn}">
         <i class="fa-solid fa-triangle-exclamation"></i>
         <span>Configura el <strong>Hosting principal</strong> en Configuraciones para usar esta sección.</span>
       </div>
@@ -197,7 +198,7 @@ function renderHostingBanner(hosting) {
   }
 
   return `
-    <div class="hosting-banner glass">
+    <div class="${tw.hostingBanner}">
       <i class="fa-solid fa-server"></i>
       <span>Hosting: <strong>${escapeHtml(hosting.conexion.nombre)}</strong> (${escapeHtml(hosting.conexion.host)})</span>
     </div>
@@ -239,17 +240,17 @@ export async function renderSoporteClientes(container) {
   try {
     hosting = await api.getHostingStatus();
   } catch (err) {
-    container.innerHTML = `<div class="empty-state glass"><p>${escapeHtml(err.message)}</p></div>`;
+    container.innerHTML = `<div class="${tw.empty}"><p>${escapeHtml(err.message)}</p></div>`;
     return;
   }
 
   if (!hosting.principalConexionId) {
     container.innerHTML = `
       ${renderHostingBanner(hosting)}
-      <div class="empty-state glass">
-        <i class="fa-solid fa-headset"></i>
-        <h3>Hosting principal no configurado</h3>
-        <p>Ve a Configuraciones y selecciona la conexión del hosting.</p>
+      <div class="${tw.empty}">
+        <i class="fa-solid fa-headset text-3xl text-slate-400"></i>
+        <h3 class="text-lg font-semibold text-slate-800">Hosting principal no configurado</h3>
+        <p class="text-sm text-slate-500">Ve a Configuraciones y selecciona la conexión del hosting.</p>
       </div>
     `;
     return;
@@ -263,7 +264,7 @@ export async function renderSoporteClientes(container) {
   } catch (err) {
     container.innerHTML = `
       ${renderHostingBanner(hosting)}
-      <div class="empty-state glass"><p>${escapeHtml(err.message)}</p></div>
+      <div class="${tw.empty}"><p>${escapeHtml(err.message)}</p></div>
     `;
     return;
   }
@@ -275,20 +276,20 @@ export async function renderSoporteClientes(container) {
 
   container.innerHTML = `
     ${renderHostingBanner(hosting)}
-    <div class="table-panel glass">
-      <div class="table-panel__toolbar">
-        <input type="search" id="soporte-search" class="table-search" placeholder="Buscar en soporte..." value="${escapeHtml(soporteState.search)}">
+    <div class="${tw.tablePanel}">
+      <div class="${tw.tableToolbar}">
+        <input type="search" id="soporte-search" class="${cx(tw.input, 'max-w-md')}" placeholder="Buscar en soporte..." value="${escapeHtml(soporteState.search)}">
       </div>
-      <table class="data-table">
+      <table class="${tw.table}">
         <thead>
           <tr>
-            <th>Empresa</th>
-            <th>Token</th>
-            <th>Sucursal</th>
-            <th>Tipo</th>
-            <th>AnyDesk</th>
-            <th>Pass</th>
-            <th>Acciones</th>
+            <th class="${tw.th}">Empresa</th>
+            <th class="${tw.th}">Token</th>
+            <th class="${tw.th}">Sucursal</th>
+            <th class="${tw.th}">Tipo</th>
+            <th class="${tw.th}">AnyDesk</th>
+            <th class="${tw.th}">Pass</th>
+            <th class="${tw.th}">Acciones</th>
           </tr>
         </thead>
         <tbody id="soporte-tbody">

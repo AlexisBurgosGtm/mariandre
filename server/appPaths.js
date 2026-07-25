@@ -1,40 +1,32 @@
 const fs = require('fs').promises;
-const fsSync = require('fs');
 const path = require('path');
 
 let dataDir = null;
 let bundleDir = null;
-let isPackaged = false;
 let initialized = false;
 
-function initPaths(electronApp) {
+function initPaths() {
   if (initialized) return;
 
   bundleDir = path.join(__dirname, '..');
-  isPackaged = Boolean(electronApp?.isPackaged);
-
-  if (isPackaged) {
-    dataDir = electronApp.getPath('userData');
-  } else {
-    dataDir = bundleDir;
-  }
+  dataDir = process.env.DATA_DIR
+    ? path.resolve(process.env.DATA_DIR)
+    : bundleDir;
 
   initialized = true;
 }
 
 function getDataDir() {
   if (!dataDir) {
-    dataDir = path.join(__dirname, '..');
+    dataDir = process.env.DATA_DIR
+      ? path.resolve(process.env.DATA_DIR)
+      : path.join(__dirname, '..');
   }
   return dataDir;
 }
 
 function getBundleDir() {
   return bundleDir || path.join(__dirname, '..');
-}
-
-function getIsPackaged() {
-  return isPackaged;
 }
 
 function conexionesPath() {
@@ -57,18 +49,6 @@ function alarmasPath() {
   return path.join(getDataDir(), 'alarmas.json');
 }
 
-function cursorApiPath() {
-  return path.join(getDataDir(), 'cursor-api.json');
-}
-
-function googleCredentialsPath() {
-  return path.join(getDataDir(), 'google-credentials.json');
-}
-
-function googleTokensPath() {
-  return path.join(getDataDir(), 'google-tokens.json');
-}
-
 function whatsappAuthPath() {
   return path.join(getDataDir(), '.wwebjs_auth');
 }
@@ -82,40 +62,10 @@ function whatsappWebCachePath() {
 }
 
 function resolveModule(moduleName) {
-  if (!isPackaged) {
-    return require(moduleName);
-  }
-
-  const candidates = [
-    path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', moduleName),
-    path.join(getBundleDir(), 'node_modules', moduleName),
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      return require(candidate);
-    } catch {
-      /* siguiente */
-    }
-  }
-
   return require(moduleName);
 }
 
 function resolveModulePath(moduleName) {
-  if (!isPackaged) {
-    return path.join(getBundleDir(), 'node_modules', moduleName);
-  }
-
-  const candidates = [
-    path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', moduleName),
-    path.join(getBundleDir(), 'node_modules', moduleName),
-  ];
-
-  for (const candidate of candidates) {
-    if (fsSync.existsSync(candidate)) return candidate;
-  }
-
   return path.join(getBundleDir(), 'node_modules', moduleName);
 }
 
@@ -141,37 +91,6 @@ async function copyIfMissing(source, target, fallbackContent) {
 
   if (fallbackContent !== undefined) {
     await fs.writeFile(target, fallbackContent, 'utf-8');
-  }
-}
-
-async function migrateGoogleCredentials() {
-  const target = googleCredentialsPath();
-
-  try {
-    await fs.access(target);
-    return;
-  } catch {
-    /* continuar */
-  }
-
-  const candidates = [
-    path.join(getBundleDir(), 'google-credentials.json'),
-    path.join(path.dirname(process.execPath), 'google-credentials.json'),
-  ];
-
-  if (process.resourcesPath) {
-    candidates.push(path.join(process.resourcesPath, 'google-credentials.json'));
-  }
-
-  for (const source of candidates) {
-    try {
-      await fs.access(source);
-      await fs.copyFile(source, target);
-      console.log(`Google credentials copiadas a ${target}`);
-      return;
-    } catch {
-      /* probar siguiente */
-    }
   }
 }
 
@@ -208,18 +127,6 @@ async function ensureDataFiles() {
     '[]'
   );
 
-  await copyIfMissing(
-    path.join(getBundleDir(), 'cursor-api.json'),
-    cursorApiPath(),
-    '{}'
-  );
-
-  await copyIfMissing(
-    path.join(getBundleDir(), 'google-credentials.json.example'),
-    path.join(getDataDir(), 'google-credentials.json.example')
-  );
-
-  await migrateGoogleCredentials();
   await fs.mkdir(puppeteerCachePath(), { recursive: true });
   await fs.mkdir(whatsappAuthPath(), { recursive: true });
   await fs.mkdir(whatsappWebCachePath(), { recursive: true });
@@ -228,8 +135,6 @@ async function ensureDataFiles() {
 function getAppInfo() {
   return {
     dataDir: getDataDir(),
-    isPackaged: getIsPackaged(),
-    googleCredentialsPath: googleCredentialsPath(),
     whatsappAuthPath: whatsappAuthPath(),
   };
 }
@@ -239,15 +144,11 @@ module.exports = {
   ensureDataFiles,
   getDataDir,
   getBundleDir,
-  getIsPackaged,
   conexionesPath,
   mantenimientoPath,
   configPath,
   serviciosOnlinePath,
   alarmasPath,
-  cursorApiPath,
-  googleCredentialsPath,
-  googleTokensPath,
   whatsappAuthPath,
   whatsappWebCachePath,
   puppeteerCachePath,

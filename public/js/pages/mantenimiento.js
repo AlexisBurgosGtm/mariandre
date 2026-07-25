@@ -1,6 +1,7 @@
 import { api } from '../api.js';
 import { showToast, confirmDialog, openModal, showLoader } from '../utils.js';
 import { runMantenimientoComando } from '../services/connections.js';
+import { tw, cx } from '../ui.js';
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -16,25 +17,25 @@ function getComandoFormHtml(comando, conexiones = []) {
 
   return `
     <form id="comando-form" novalidate>
-      <div class="form-grid">
-        <div class="form-group form-group--full">
-          <label for="cmd-nombre">Nombre</label>
-          <input type="text" id="cmd-nombre" name="nombre" value="${escapeHtml(c.nombre || '')}" required placeholder="Descripción del comando">
+      <div class="${tw.formGrid}">
+        <div class="${tw.formGroupFull}">
+          <label class="${tw.label}" for="cmd-nombre">Nombre</label>
+          <input class="${tw.input}" type="text" id="cmd-nombre" name="nombre" value="${escapeHtml(c.nombre || '')}" required placeholder="Descripción del comando">
         </div>
-        <div class="form-group form-group--full">
-          <label for="cmd-conexionId">Conexión</label>
-          <select id="cmd-conexionId" name="conexionId" required>
+        <div class="${tw.formGroupFull}">
+          <label class="${tw.label}" for="cmd-conexionId">Conexión</label>
+          <select class="${tw.input}" id="cmd-conexionId" name="conexionId" required>
             <option value="">Seleccionar conexión...</option>
             ${options}
           </select>
         </div>
-        <div class="form-group form-group--full">
-          <label for="cmd-query">Query SQL</label>
-          <textarea id="cmd-query" name="sqlQuery" rows="6" required placeholder="SELECT * FROM ...">${escapeHtml(c.query || '')}</textarea>
+        <div class="${tw.formGroupFull}">
+          <label class="${tw.label}" for="cmd-query">Query SQL</label>
+          <textarea class="${tw.input}" id="cmd-query" name="sqlQuery" rows="6" required placeholder="SELECT * FROM ...">${escapeHtml(c.query || '')}</textarea>
         </div>
       </div>
-      <div class="form-actions">
-        <button type="submit" class="btn btn--primary"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+      <div class="${tw.formActions}">
+        <button type="submit" class="${tw.btnPrimary}"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
       </div>
     </form>
   `;
@@ -176,11 +177,11 @@ export async function renderMantenimiento(container) {
 
   if (!comandos.length) {
     container.innerHTML = `
-      <div class="empty-state glass">
-        <i class="fa-solid fa-screwdriver-wrench"></i>
-        <h3>Sin comandos de mantenimiento</h3>
-        <p>Agrega queries SQL asociadas a una conexión para ejecutarlas manualmente.</p>
-        <button class="btn btn--primary" id="btn-first-comando" type="button">
+      <div class="${tw.empty}">
+        <i class="fa-solid fa-screwdriver-wrench text-3xl text-slate-400"></i>
+        <h3 class="text-lg font-semibold text-slate-800">Sin comandos de mantenimiento</h3>
+        <p class="text-sm text-slate-500">Agrega queries SQL asociadas a una conexión para ejecutarlas manualmente.</p>
+        <button class="${tw.btnPrimary}" id="btn-first-comando" type="button">
           <i class="fa-solid fa-plus"></i> Agregar comando
         </button>
       </div>
@@ -190,30 +191,30 @@ export async function renderMantenimiento(container) {
   }
 
   container.innerHTML = `
-    <div class="table-panel glass">
-      <table class="data-table">
+    <div class="${tw.tablePanel}">
+      <table class="${tw.table}">
         <thead>
           <tr>
-            <th>Nombre</th>
-            <th>Conexión</th>
-            <th>Query</th>
-            <th>Acciones</th>
+            <th class="${tw.th}">Nombre</th>
+            <th class="${tw.th}">Conexión</th>
+            <th class="${tw.th}">Query</th>
+            <th class="${tw.th}">Acciones</th>
           </tr>
         </thead>
         <tbody>
           ${comandos.map((c) => `
             <tr>
-              <td>${escapeHtml(c.nombre || '—')}</td>
-              <td><span class="table-tag"><i class="fa-solid fa-plug"></i> ${escapeHtml(conexionMap[c.conexionId] || 'Desconocida')}</span></td>
-              <td><code class="query-preview">${escapeHtml(c.query)}</code></td>
-              <td class="table-actions">
-                <button class="btn btn--ghost btn--sm btn-run" data-id="${c.id}" title="Ejecutar">
+              <td class="${tw.td}">${escapeHtml(c.nombre || '—')}</td>
+              <td class="${tw.td}"><span class="${tw.tableTag}"><i class="fa-solid fa-plug"></i> ${escapeHtml(conexionMap[c.conexionId] || 'Desconocida')}</span></td>
+              <td class="${tw.td}"><code class="${tw.queryPreview}">${escapeHtml(c.query)}</code></td>
+              <td class="${cx(tw.td, tw.tableActions)}">
+                <button class="${cx(tw.btnGhost, tw.btnSm)} btn-run" data-id="${c.id}" title="Ejecutar">
                   <i class="fa-solid fa-play"></i>
                 </button>
-                <button class="btn btn--ghost btn--sm btn-edit" data-id="${c.id}" title="Editar">
+                <button class="${cx(tw.btnGhost, tw.btnSm)} btn-edit" data-id="${c.id}" title="Editar">
                   <i class="fa-solid fa-pen"></i>
                 </button>
-                <button class="btn btn--danger btn--sm btn-delete" data-id="${c.id}" title="Eliminar">
+                <button class="${cx(tw.btnDanger, tw.btnSm)} btn-delete" data-id="${c.id}" title="Eliminar">
                   <i class="fa-solid fa-trash"></i>
                 </button>
               </td>

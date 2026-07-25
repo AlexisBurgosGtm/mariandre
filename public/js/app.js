@@ -3,19 +3,18 @@ import { renderHome } from './pages/home.js';
 import { renderConexiones, openNewConexionModal, cleanupConexionesPage } from './pages/conexiones.js';
 import { renderMantenimiento, openNewComandoModal } from './pages/mantenimiento.js';
 import { renderWhatsapp, cleanupWhatsappPage } from './pages/whatsapp.js';
-import { renderTareas } from './pages/tareas.js';
 import { renderServiciosOnline, openNewServicioModal, cleanupServiciosOnlinePage } from './pages/servicios-online.js';
 import { renderSoporteClientes, openNewSoporteModal } from './pages/soporte-clientes.js';
 import { renderUpdater, openNewUpdaterModal } from './pages/updater.js';
 import { renderTokens, openNewTokenModal, openNewCommunityModal } from './pages/tokens.js';
 import { renderConfiguraciones } from './pages/configuraciones.js';
 import { renderAlarmas, openNewAlarmaModal } from './pages/alarmas.js';
-import { renderCursor } from './pages/cursor.js';
 import { initWhatsAppListener } from './services/whatsapp.js';
 import { initAlarmas } from './services/alarmas.js';
 import { initTts } from './tts.js';
-import { showToast, renderLoader } from './utils.js';
+import { renderLoader } from './utils.js';
 import { initTheme } from './themes.js';
+import { tw, cx } from './ui.js';
 
 const routes = {
   '/': { title: 'Inicio', icon: 'fa-house', render: renderHome },
@@ -25,15 +24,19 @@ const routes = {
   '/updater': { title: 'Updater', icon: 'fa-database', render: renderUpdater },
   '/tokens': { title: 'Tokens', icon: 'fa-key', render: renderTokens },
   '/mantenimiento': { title: 'Mantenimiento DB', icon: 'fa-screwdriver-wrench', render: renderMantenimiento },
-  '/tareas': { title: 'Tareas', icon: 'fa-list-check', render: renderTareas },
   '/alarmas': { title: 'Alarmas', icon: 'fa-bell', render: renderAlarmas },
   '/whatsapp': { title: 'Whatsapp', icon: 'fa-brands fa-whatsapp', render: renderWhatsapp },
-  '/cursor': { title: 'Cursor', icon: 'fa-solid fa-code', render: renderCursor },
   '/configuraciones': { title: 'Configuraciones', icon: 'fa-gear', render: renderConfiguraciones },
 };
 
 let currentRoute = '/';
 let renderGeneration = 0;
+
+const VIEW_TRANSITION_MS = 120;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function getRoute() {
   const hash = window.location.hash.slice(1) || '/';
@@ -45,64 +48,79 @@ function hashForRoute(path) {
   return path === '/' ? '#/' : `#${path}`;
 }
 
+function setSidebarOpen(open) {
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (!sidebar || !backdrop) return;
+
+  if (open) {
+    sidebar.classList.remove('-translate-x-full');
+    sidebar.classList.add('translate-x-0');
+    backdrop.classList.remove('hidden');
+  } else {
+    sidebar.classList.add('-translate-x-full');
+    sidebar.classList.remove('translate-x-0');
+    backdrop.classList.add('hidden');
+  }
+
+  document.body.classList.toggle('overflow-hidden', open && window.matchMedia('(max-width: 1023px)').matches);
+}
+
+function closeSidebar() {
+  setSidebarOpen(false);
+}
+
 function renderNav() {
   const nav = document.getElementById('nav');
   nav.innerHTML = Object.entries(routes).map(([path, route]) => `
-    <a class="nav-link ${currentRoute === path ? 'active' : ''}" data-route="${path}" href="${hashForRoute(path)}">
-      <i class="fa-solid ${route.icon}"></i>
+    <a
+      class="${cx(tw.navLink, currentRoute === path && tw.navLinkActive)}"
+      data-route="${path}"
+      href="${hashForRoute(path)}"
+    >
+      <i class="fa-solid ${route.icon} w-5 text-center"></i>
       <span>${route.title}</span>
     </a>
   `).join('');
 
-  nav.querySelectorAll('.nav-link').forEach((link) => {
+  nav.querySelectorAll('[data-route]').forEach((link) => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
+      closeSidebar();
       navigate(link.dataset.route);
     });
   });
+}
+
+function actionBtn(id, label, icon = 'fa-plus', variant = 'primary') {
+  const cls = variant === 'ghost' ? tw.btnGhost : tw.btnPrimary;
+  return `<button class="${cls}" id="${id}" type="button"><i class="fa-solid ${icon}"></i> <span class="hidden sm:inline">${label}</span></button>`;
 }
 
 function renderTopbarActions(routePath = currentRoute) {
   const actions = document.getElementById('topbar-actions');
   let extra = '';
 
-  if (routePath === '/conexiones') {
-    extra = `<button class="btn btn--primary" id="btn-add-conexion"><i class="fa-solid fa-plus"></i> Nueva conexión</button>`;
-  } else if (routePath === '/servicios-online') {
-    extra = `<button class="btn btn--primary" id="btn-add-servicio" type="button"><i class="fa-solid fa-plus"></i> Nuevo servicio</button>`;
-  } else if (routePath === '/soporte-clientes') {
-    extra = `<button class="btn btn--primary" id="btn-add-soporte" type="button"><i class="fa-solid fa-plus"></i> Nuevo registro</button>`;
-  } else if (routePath === '/updater') {
-    extra = `<button class="btn btn--primary" id="btn-add-updater" type="button"><i class="fa-solid fa-plus"></i> Nueva query</button>`;
-  } else if (routePath === '/tokens') {
-    extra = `
-      <button class="btn btn--primary" id="btn-add-token" type="button"><i class="fa-solid fa-plus"></i> Nuevo token</button>
-      <button class="btn btn--ghost" id="btn-add-community-top" type="button"><i class="fa-solid fa-building"></i> Nueva empresa</button>
-    `;
-  } else if (routePath === '/mantenimiento') {
-    extra = `<button class="btn btn--primary" id="btn-add-comando" type="button"><i class="fa-solid fa-plus"></i> Nuevo comando</button>`;
-  } else if (routePath === '/alarmas') {
-    extra = `<button class="btn btn--primary" id="btn-add-alarma" type="button"><i class="fa-solid fa-plus"></i> Nueva alarma</button>`;
-  }
+  if (routePath === '/conexiones') extra = actionBtn('btn-add-conexion', 'Nueva conexión');
+  else if (routePath === '/servicios-online') extra = actionBtn('btn-add-servicio', 'Nuevo servicio');
+  else if (routePath === '/soporte-clientes') extra = actionBtn('btn-add-soporte', 'Nuevo registro');
+  else if (routePath === '/updater') extra = actionBtn('btn-add-updater', 'Nueva query');
+  else if (routePath === '/tokens') {
+    extra = `${actionBtn('btn-add-token', 'Nuevo token')} ${actionBtn('btn-add-community-top', 'Nueva empresa', 'fa-building', 'ghost')}`;
+  } else if (routePath === '/mantenimiento') extra = actionBtn('btn-add-comando', 'Nuevo comando');
+  else if (routePath === '/alarmas') extra = actionBtn('btn-add-alarma', 'Nueva alarma');
 
   actions.innerHTML = extra;
 
-  if (routePath === '/conexiones') {
-    document.getElementById('btn-add-conexion')?.addEventListener('click', openNewConexionModal);
-  } else if (routePath === '/servicios-online') {
-    document.getElementById('btn-add-servicio')?.addEventListener('click', openNewServicioModal);
-  } else if (routePath === '/soporte-clientes') {
-    document.getElementById('btn-add-soporte')?.addEventListener('click', openNewSoporteModal);
-  } else if (routePath === '/updater') {
-    document.getElementById('btn-add-updater')?.addEventListener('click', openNewUpdaterModal);
-  } else if (routePath === '/tokens') {
+  if (routePath === '/conexiones') document.getElementById('btn-add-conexion')?.addEventListener('click', openNewConexionModal);
+  else if (routePath === '/servicios-online') document.getElementById('btn-add-servicio')?.addEventListener('click', openNewServicioModal);
+  else if (routePath === '/soporte-clientes') document.getElementById('btn-add-soporte')?.addEventListener('click', openNewSoporteModal);
+  else if (routePath === '/updater') document.getElementById('btn-add-updater')?.addEventListener('click', openNewUpdaterModal);
+  else if (routePath === '/tokens') {
     document.getElementById('btn-add-token')?.addEventListener('click', openNewTokenModal);
     document.getElementById('btn-add-community-top')?.addEventListener('click', openNewCommunityModal);
-  } else if (routePath === '/mantenimiento') {
-    document.getElementById('btn-add-comando')?.addEventListener('click', openNewComandoModal);
-  } else if (routePath === '/alarmas') {
-    document.getElementById('btn-add-alarma')?.addEventListener('click', openNewAlarmaModal);
-  }
+  } else if (routePath === '/mantenimiento') document.getElementById('btn-add-comando')?.addEventListener('click', openNewComandoModal);
+  else if (routePath === '/alarmas') document.getElementById('btn-add-alarma')?.addEventListener('click', openNewAlarmaModal);
 }
 
 function cleanupOtherPages(routePath) {
@@ -118,23 +136,34 @@ async function renderPage() {
   if (!route) return;
 
   cleanupOtherPages(routePath);
-
   document.getElementById('page-title').textContent = route.title;
   renderTopbarActions(routePath);
 
   const content = document.getElementById('content');
-  content.innerHTML = renderLoader('Cargando sección...');
+  content.classList.add('opacity-0', 'transition-opacity', 'duration-150');
+  await sleep(VIEW_TRANSITION_MS);
+  if (generation !== renderGeneration) return;
+
+  content.classList.remove('opacity-0');
+  content.innerHTML = renderLoader('Cargando datos...');
+  await sleep(0);
+  if (generation !== renderGeneration) return;
 
   try {
     await route.render(content);
   } catch (err) {
     if (generation !== renderGeneration) return;
-    content.innerHTML = `<div class="empty-state glass"><p>${err.message}</p></div>`;
+    content.innerHTML = `<div class="${tw.empty}"><p>${err.message}</p></div>`;
     renderTopbarActions(routePath);
     return;
   }
 
   if (generation !== renderGeneration) return;
+
+  content.classList.add('opacity-0');
+  await sleep(16);
+  if (generation !== renderGeneration) return;
+  content.classList.remove('opacity-0');
 }
 
 async function reloadCurrentPage() {
@@ -162,41 +191,35 @@ function navigate(path) {
 
 async function checkServerStatus() {
   const statusEl = document.getElementById('server-status');
-  const dot = document.querySelector('.status-dot');
+  const dot = document.getElementById('status-dot');
   try {
     const status = await api.getStatus();
     statusEl.textContent = `Servidor :${status.puerto}`;
-    dot.classList.add('online');
+    dot.className = 'h-2 w-2 shrink-0 rounded-full bg-green-500';
   } catch {
     statusEl.textContent = 'Servidor offline';
-    dot.classList.remove('online');
+    dot.className = 'h-2 w-2 shrink-0 rounded-full bg-amber-400';
   }
 }
 
 window.__reloadConexiones = async () => {
   if (currentRoute === '/conexiones') await reloadCurrentPage();
 };
-
 window.__reloadServiciosOnline = async () => {
   if (currentRoute === '/servicios-online') await reloadCurrentPage();
 };
-
 window.__reloadMantenimiento = async () => {
   if (currentRoute === '/mantenimiento') await reloadCurrentPage();
 };
-
 window.__reloadSoporte = async () => {
   if (currentRoute === '/soporte-clientes') await reloadCurrentPage();
 };
-
 window.__reloadUpdater = async () => {
   if (currentRoute === '/updater') await reloadCurrentPage();
 };
-
 window.__reloadTokens = async () => {
   if (currentRoute === '/tokens') await reloadCurrentPage();
 };
-
 window.__reloadAlarmas = async () => {
   if (currentRoute === '/alarmas') await reloadCurrentPage();
 };
@@ -207,22 +230,19 @@ window.addEventListener('hashchange', () => {
   renderPage();
 });
 
-initTheme();
-
-document.getElementById('btn-hide-tray')?.addEventListener('click', async () => {
-  try {
-    await api.hideToTray();
-  } catch (err) {
-    showToast(err.message, 'error');
-  }
+document.getElementById('btn-open-sidebar')?.addEventListener('click', () => setSidebarOpen(true));
+document.getElementById('btn-close-sidebar')?.addEventListener('click', closeSidebar);
+document.getElementById('sidebar-backdrop')?.addEventListener('click', closeSidebar);
+window.addEventListener('resize', () => {
+  if (window.matchMedia('(min-width: 1024px)').matches) closeSidebar();
 });
 
+initTheme();
 currentRoute = getRoute();
 renderNav();
 renderPage();
 checkServerStatus();
 setInterval(checkServerStatus, 30000);
-
 initTts();
 initWhatsAppListener();
 initAlarmas();
