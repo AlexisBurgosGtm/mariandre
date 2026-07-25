@@ -22,12 +22,6 @@
   }
 }
 
-@keyframes loader-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 @keyframes toast-in {
   from {
     opacity: 0;
@@ -39,10 +33,224 @@
   }
 }
 
-.animate-loader-spin {
-  animation: loader-spin 0.75s linear infinite;
-}
-
 .animate-toast-in {
   animation: toast-in 0.25s ease;
 }
+
+.ma-loader-track {
+  width: min(100%, 18rem);
+  height: 0.45rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: #e2e8f0;
+}
+
+.ma-loader-track-sm {
+  width: min(100%, 12rem);
+  height: 0.35rem;
+}
+
+.ma-loader-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #38bdf8, #2563eb);
+  background-size: 200% 100%;
+  animation: ma-loader-sheen 0.7s linear infinite;
+  transition: width 0.05s linear;
+}
+
+@keyframes ma-loader-sheen {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ma-loader-bar {
+    animation: none;
+    background: #2563eb;
+  }
+}
+
+@keyframes home-logo-life {
+  0%,
+  100% {
+    transform: translateY(0) scale(1) rotate(0deg);
+    filter: drop-shadow(0 10px 24px rgba(37, 99, 235, 0.18));
+  }
+  35% {
+    transform: translateY(-10px) scale(1.04) rotate(-2deg);
+    filter: drop-shadow(0 18px 32px rgba(56, 189, 248, 0.28));
+  }
+  70% {
+    transform: translateY(-4px) scale(1.02) rotate(2deg);
+    filter: drop-shadow(0 14px 28px rgba(37, 99, 235, 0.22));
+  }
+}
+
+.home-logo {
+  animation: home-logo-life 4.5s ease-in-out infinite;
+  will-change: transform, filter;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-logo {
+    animation: none;
+  }
+}
+
+/* —— SweetAlert2 alineado al diseño MariAndre —— */
+.ma-swal-container.swal2-container {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.ma-swal-popup.swal2-popup {
+  width: min(100% - 2rem, 26rem);
+  padding: 1.5rem 1.5rem 1.25rem;
+  border: 1px solid rgb(226 232 240 / 0.85);
+  border-radius: 1.5rem;
+  box-shadow:
+    0 25px 50px -12px rgb(15 23 42 / 0.2),
+    0 0 0 1px rgb(255 255 255 / 0.4) inset;
+  font-family: "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+.ma-swal-popup.swal2-popup.ma-swal-show {
+  animation: ma-swal-in 0.22s ease;
+}
+
+@keyframes ma-swal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.ma-swal-title.swal2-title {
+  margin: 0.25rem 0 0;
+  padding: 0;
+  color: #0f172a;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+.ma-swal-text.swal2-html-container {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  color: #64748b;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.ma-swal-icon.swal2-icon {
+  margin: 0.25rem auto 0.75rem;
+  border-width: 3px;
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
+.ma-swal-icon.swal2-icon .swal2-icon-content {
+  font-size: 2rem;
+}
+
+.ma-swal-icon.swal2-icon.swal2-warning {
+  border-color: #fbbf24;
+  color: #d97706;
+}
+
+.ma-swal-icon.swal2-icon.swal2-error {
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.ma-swal-icon.swal2-icon.swal2-success {
+  border-color: #86efac;
+  color: #16a34a;
+}
+
+.ma-swal-icon.swal2-icon.swal2-info {
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+.ma-swal-icon.swal2-icon.swal2-question {
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+.ma-swal-actions.swal2-actions {
+  margin: 1.25rem 0 0;
+  gap: 0.5rem;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.ma-swal-confirm.swal2-confirm,
+.ma-swal-cancel.swal2-cancel,
+.ma-swal-deny.swal2-deny {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.55rem 1.15rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.ma-swal-confirm.swal2-confirm {
+  border: 1px solid transparent;
+  background: #2563eb;
+  color: #fff;
+}
+
+.ma-swal-confirm.swal2-confirm:hover {
+  background: #3b82f6;
+}
+
+.ma-swal-confirm.swal2-confirm:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 0.25);
+}
+
+.ma-swal-cancel.swal2-cancel {
+  border: 1px solid #e2e8f0;
+  background: rgb(255 255 255 / 0.85);
+  color: #1e293b;
+}
+
+.ma-swal-cancel.swal2-cancel:hover {
+  background: #f1f5f9;
+}
+
+.ma-swal-cancel.swal2-cancel:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(148 163 184 / 0.3);
+}
+
+.ma-swal-deny.swal2-deny {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.ma-swal-deny.swal2-deny:hover {
+  background: #fee2e2;
+}
+
+

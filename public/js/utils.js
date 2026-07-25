@@ -3,10 +3,29 @@ import { tw, cx } from './ui.js';
 const SWAL_BASE = {
   background: 'rgba(255, 255, 255, 0.96)',
   color: '#0f172a',
-  backdrop: 'rgba(15, 23, 42, 0.35)',
-  buttonsStyling: true,
-  confirmButtonColor: '#2563eb',
-  cancelButtonColor: '#94a3b8',
+  backdrop: 'rgba(15, 23, 42, 0.4)',
+  buttonsStyling: false,
+  reverseButtons: true,
+  focusCancel: true,
+  showClass: {
+    popup: 'swal2-show ma-swal-show',
+    backdrop: 'swal2-backdrop-show',
+  },
+  hideClass: {
+    popup: 'swal2-hide',
+    backdrop: 'swal2-backdrop-hide',
+  },
+  customClass: {
+    container: 'ma-swal-container',
+    popup: 'ma-swal-popup',
+    title: 'ma-swal-title',
+    htmlContainer: 'ma-swal-text',
+    icon: 'ma-swal-icon',
+    actions: 'ma-swal-actions',
+    confirmButton: 'ma-swal-confirm',
+    cancelButton: 'ma-swal-cancel',
+    denyButton: 'ma-swal-deny',
+  },
 };
 
 export async function confirmDialog({
@@ -24,19 +43,64 @@ export async function confirmDialog({
     showCancelButton: true,
     confirmButtonText: confirmText,
     cancelButtonText: cancelText,
-    reverseButtons: true,
-    focusCancel: true,
   });
 
   return result.isConfirmed;
 }
 
+let loaderSeq = 0;
+
+function startLoaderProgress(id) {
+  const root = document.querySelector(`[data-loader-id="${id}"]`);
+  if (!root) return;
+
+  const bar = root.querySelector('[data-loader-bar]');
+  const pct = root.querySelector('[data-loader-pct]');
+  if (!bar || !pct) return;
+
+  let value = 0;
+  const started = performance.now();
+
+  const tick = () => {
+    if (!root.isConnected) return;
+
+    const elapsed = performance.now() - started;
+    // Sube rápido al inicio y se frena cerca del 90–94%
+    const target = 94 * (1 - Math.exp(-elapsed / 280));
+    value = Math.min(94, Math.max(value, target) + Math.random() * 0.6);
+
+    const shown = Math.floor(value);
+    bar.style.width = `${value}%`;
+    pct.textContent = `${shown}%`;
+
+    if (value < 94) {
+      root._loaderTimer = setTimeout(tick, 28);
+    }
+  };
+
+  tick();
+}
+
 export function renderLoader(message = 'Cargando...', { compact = false } = {}) {
+  const id = `ma-loader-${++loaderSeq}`;
   const box = compact ? tw.loaderCompact : tw.loader;
+  const pctClass = compact
+    ? 'ma-loader-pct text-2xl font-semibold tabular-nums tracking-tight text-blue-600'
+    : 'ma-loader-pct text-4xl font-semibold tabular-nums tracking-tight text-blue-600 sm:text-5xl';
+  const msgClass = compact
+    ? 'text-xs font-medium text-slate-500'
+    : 'text-sm font-medium text-slate-500';
+  const trackClass = compact ? 'ma-loader-track ma-loader-track-sm' : 'ma-loader-track';
+
+  queueMicrotask(() => startLoaderProgress(id));
+
   return `
-    <div class="${box}" role="status" aria-live="polite">
-      <i class="fa-solid fa-spinner fa-spin text-2xl text-blue-600" aria-hidden="true"></i>
-      <span class="text-sm font-medium text-slate-600">${message}</span>
+    <div class="${box}" role="status" aria-live="polite" data-loader-id="${id}">
+      <div class="${pctClass}" data-loader-pct>0%</div>
+      <div class="${trackClass}" aria-hidden="true">
+        <div class="ma-loader-bar" data-loader-bar style="width:0%"></div>
+      </div>
+      <span class="${msgClass}">${message}</span>
     </div>
   `;
 }

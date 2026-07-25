@@ -1,6 +1,5 @@
 import { api } from '../api.js';
 import { showToast, showLoader } from '../utils.js';
-import { getStoredTheme, renderThemeSelector, bindThemeSelector } from '../themes.js';
 import { tw, cx } from '../ui.js';
 
 function escapeHtml(text) {
@@ -60,12 +59,8 @@ export async function renderConfiguraciones(container) {
           `}
         </div>
       </div>
-
-      ${renderThemeSelector(getStoredTheme())}
     </div>
   `;
-
-  bindThemeSelector(container);
 
   const saveBtn = container.querySelector('#btn-save-hosting');
   if (!saveBtn) return;

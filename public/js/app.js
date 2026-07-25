@@ -13,7 +13,6 @@ import { initWhatsAppListener } from './services/whatsapp.js';
 import { initAlarmas } from './services/alarmas.js';
 import { initTts } from './tts.js';
 import { renderLoader } from './utils.js';
-import { initTheme } from './themes.js';
 import { tw, cx } from './ui.js';
 
 const routes = {
@@ -237,7 +236,7 @@ window.addEventListener('resize', () => {
   if (window.matchMedia('(min-width: 1024px)').matches) closeSidebar();
 });
 
-initTheme();
+document.documentElement.removeAttribute('data-theme');
 currentRoute = getRoute();
 renderNav();
 renderPage();

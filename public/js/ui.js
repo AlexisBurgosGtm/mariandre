@@ -30,9 +30,9 @@ export const tw = {
   empty:
     'flex flex-col items-center justify-center gap-3 rounded-3xl border border-slate-200/80 bg-white/80 p-8 text-center text-slate-600 shadow-sm backdrop-blur-xl',
   loader:
-    'flex min-h-48 flex-col items-center justify-center gap-3 rounded-3xl border border-slate-200/80 bg-white/80 px-6 py-14 text-slate-600 shadow-sm backdrop-blur-xl',
+    'flex min-h-56 w-full flex-col items-center justify-center gap-4 rounded-3xl border border-slate-200/80 bg-white/80 px-8 py-14 text-slate-600 shadow-sm backdrop-blur-xl',
   loaderCompact:
-    'flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-8 text-sm text-slate-600 shadow-sm backdrop-blur-xl',
+    'flex min-h-36 w-full flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-5 py-10 text-slate-600 shadow-sm backdrop-blur-xl',
   toast:
     'pointer-events-auto flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white/95 px-4 py-3 text-sm text-slate-800 shadow-lg backdrop-blur-xl',
   modalOverlay:
