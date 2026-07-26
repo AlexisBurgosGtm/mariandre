@@ -42,6 +42,18 @@ export const api = {
   createCommunityEmpresa: (data) => request('/tokens/community', { method: 'POST', body: JSON.stringify(data) }),
   updateCommunityEmpresa: (id, data) => request(`/tokens/community/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteCommunityEmpresa: (id) => request(`/tokens/community/${id}`, { method: 'DELETE' }),
+  getRenderCuentas: () => request('/render/cuentas'),
+  createRenderCuenta: (data) => request('/render/cuentas', { method: 'POST', body: JSON.stringify(data) }),
+  updateRenderCuenta: (id, data) => request(`/render/cuentas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteRenderCuenta: (id) => request(`/render/cuentas/${id}`, { method: 'DELETE' }),
+  getRenderCuentaUsage: (id) => request(`/render/cuentas/${id}/usage`),
+  getRenderApps: (idRender, search = '') => {
+    const params = new URLSearchParams({ idRender, search });
+    return request(`/render/apps?${params}`);
+  },
+  createRenderApp: (data) => request('/render/apps', { method: 'POST', body: JSON.stringify(data) }),
+  updateRenderApp: (id, data) => request(`/render/apps/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteRenderApp: (id) => request(`/render/apps/${id}`, { method: 'DELETE' }),
   getConexiones: () => request('/conexiones'),
   getConexion: (id) => request(`/conexiones/${id}`),
   createConexion: (data) => request('/conexiones', { method: 'POST', body: JSON.stringify(data) }),

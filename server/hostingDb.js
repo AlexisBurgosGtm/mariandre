@@ -773,6 +773,258 @@ async function deleteServicioOnline(conexion, id) {
   });
 }
 
+/** Columnas reales existentes en Hosting: RENDER_CUENTAS / RENDER_APPS (sin ensure/create). */
+const RENDER_CUENTA_FIELDS = 'IDRENDER, EMAIL, PASS, APIKEY';
+const RENDER_APP_FIELDS = 'IDSERVICIO, IDRENDER, URL, [USAGE]';
+
+function mapRenderCuenta(row) {
+  return normalizeRow(row);
+}
+
+function mapRenderApp(row) {
+  const n = normalizeRow(row);
+  return {
+    ...n,
+    USAGE: n.USAGE == null || n.USAGE === '' ? 0 : Number(n.USAGE),
+  };
+}
+
+function parseUsageValue(value) {
+  if (value === '' || value == null) return 0;
+  const num = Number(value);
+  if (!Number.isFinite(num)) throw new Error('USAGE debe ser numérico');
+  return num;
+}
+
+async function listRenderCuentas(conexion) {
+  return withHostingConnection(conexion, async (db, tipo) => {
+    if (tipo === 'mssql') {
+      const result = await db.request().query(
+        `SELECT ${RENDER_CUENTA_FIELDS} FROM RENDER_CUENTAS ORDER BY EMAIL, IDRENDER`
+      );
+      return (result.recordset || []).map(mapRenderCuenta);
+    }
+    const [rows] = await db.query(
+      `SELECT ${RENDER_CUENTA_FIELDS} FROM RENDER_CUENTAS ORDER BY EMAIL, IDRENDER`
+    );
+    return rows.map(mapRenderCuenta);
+  });
+}
+
+async function getRenderCuenta(conexion, id) {
+  return withHostingConnection(conexion, async (db, tipo) => {
+    if (tipo === 'mssql') {
+      const result = await db.request()
+        .input('id', sql.Int, id)
+        .query(`SELECT ${RENDER_CUENTA_FIELDS} FROM RENDER_CUENTAS WHERE IDRENDER = @id`);
+      if (!result.recordset.length) throw new Error('Cuenta Render no encontrada');
+      return mapRenderCuenta(result.recordset[0]);
+    }
+    const [rows] = await db.query(
+      `SELECT ${RENDER_CUENTA_FIELDS} FROM RENDER_CUENTAS WHERE IDRENDER = ?`,
+      [id]
+    );
+    if (!rows.length) throw new Error('Cuenta Render no encontrada');
+    return mapRenderCuenta(rows[0]);
+  });
+}
+
+async function createRenderCuenta(conexion, data) {
+  const email = (data.EMAIL || '').trim();
+  if (!email) throw new Error('EMAIL es obligatorio');
+
+  return withHostingConnection(conexion, async (db, tipo) => {
+    if (tipo === 'mssql') {
+      const result = await db.request()
+        .input('email', sql.VarChar(250), email)
+        .input('pass', sql.VarChar(150), data.PASS || '')
+        .input('apikey', sql.NVarChar(500), data.APIKEY || '')
+        .query(`
+          INSERT INTO RENDER_CUENTAS (EMAIL, PASS, APIKEY)
+          OUTPUT INSERTED.IDRENDER, INSERTED.EMAIL, INSERTED.PASS, INSERTED.APIKEY
+          VALUES (@email, @pass, @apikey)
+        `);
+      return mapRenderCuenta(result.recordset[0]);
+    }
+
+    const [result] = await db.query(
+      'INSERT INTO RENDER_CUENTAS (EMAIL, PASS, APIKEY) VALUES (?, ?, ?)',
+      [email, data.PASS || '', data.APIKEY || '']
+    );
+    const [rows] = await db.query(
+      `SELECT ${RENDER_CUENTA_FIELDS} FROM RENDER_CUENTAS WHERE IDRENDER = ?`,
+      [result.insertId]
+    );
+    return mapRenderCuenta(rows[0]);
+  });
+}
+
+async function updateRenderCuenta(conexion, id, data) {
+  const email = (data.EMAIL || '').trim();
+  if (!email) throw new Error('EMAIL es obligatorio');
+
+  return withHostingConnection(conexion, async (db, tipo) => {
+    if (tipo === 'mssql') {
+      const result = await db.request()
+        .input('id', sql.Int, id)
+        .input('email', sql.VarChar(250), email)
+        .input('pass', sql.VarChar(150), data.PASS || '')
+        .input('apikey', sql.NVarChar(500), data.APIKEY || '')
+        .query(`
+          UPDATE RENDER_CUENTAS
+          SET EMAIL=@email, PASS=@pass, APIKEY=@apikey
+          OUTPUT INSERTED.IDRENDER, INSERTED.EMAIL, INSERTED.PASS, INSERTED.APIKEY
+          WHERE IDRENDER = @id
+        `);
+      if (!result.recordset.length) throw new Error('Cuenta Render no encontrada');
+      return mapRenderCuenta(result.recordset[0]);
+    }
+
+    const [result] = await db.query(
+      'UPDATE RENDER_CUENTAS SET EMAIL=?, PASS=?, APIKEY=? WHERE IDRENDER=?',
+      [email, data.PASS || '', data.APIKEY || '', id]
+    );
+    if (!result.affectedRows) throw new Error('Cuenta Render no encontrada');
+    const [rows] = await db.query(
+      `SELECT ${RENDER_CUENTA_FIELDS} FROM RENDER_CUENTAS WHERE IDRENDER = ?`,
+      [id]
+    );
+    return mapRenderCuenta(rows[0]);
+  });
+}
+
+async function deleteRenderCuenta(conexion, id) {
+  return withHostingConnection(conexion, async (db, tipo) => {
+    if (tipo === 'mssql') {
+      await db.request().input('id', sql.Int, id).query('DELETE FROM RENDER_APPS WHERE IDRENDER = @id');
+      const result = await db.request()
+        .input('id', sql.Int, id)
+        .query('DELETE FROM RENDER_CUENTAS WHERE IDRENDER = @id');
+      if (!result.rowsAffected[0]) throw new Error('Cuenta Render no encontrada');
+      return { ok: true };
+    }
+
+    await db.query('DELETE FROM RENDER_APPS WHERE IDRENDER = ?', [id]);
+    const [result] = await db.query('DELETE FROM RENDER_CUENTAS WHERE IDRENDER = ?', [id]);
+    if (!result.affectedRows) throw new Error('Cuenta Render no encontrada');
+    return { ok: true };
+  });
+}
+
+async function listRenderApps(conexion, idRender, search = '') {
+  const term = `%${(search || '').trim()}%`;
+
+  return withHostingConnection(conexion, async (db, tipo) => {
+    if (tipo === 'mssql') {
+      const result = await db.request()
+        .input('idRender', sql.Int, idRender)
+        .input('search', sql.VarChar(200), term)
+        .query(`
+          SELECT ${RENDER_APP_FIELDS} FROM RENDER_APPS
+          WHERE IDRENDER = @idRender
+          AND (
+            @search = '%%' OR URL LIKE @search
+            OR CAST(IDSERVICIO AS VARCHAR(20)) LIKE @search
+            OR CAST([USAGE] AS VARCHAR(50)) LIKE @search
+          )
+          ORDER BY IDSERVICIO
+        `);
+      return (result.recordset || []).map(mapRenderApp);
+    }
+
+    const [rows] = await db.query(
+      `SELECT IDSERVICIO, IDRENDER, URL, \`USAGE\` AS \`USAGE\` FROM RENDER_APPS
+       WHERE IDRENDER = ?
+       AND (? = '%%' OR URL LIKE ? OR CAST(IDSERVICIO AS CHAR) LIKE ? OR CAST(\`USAGE\` AS CHAR) LIKE ?)
+       ORDER BY IDSERVICIO`,
+      [idRender, term, term, term, term]
+    );
+    return rows.map(mapRenderApp);
+  });
+}
+
+async function createRenderApp(conexion, data) {
+  const idRender = parseInt(data.IDRENDER, 10);
+  if (!Number.isFinite(idRender)) throw new Error('IDRENDER es obligatorio');
+  const usage = parseUsageValue(data.USAGE);
+
+  return withHostingConnection(conexion, async (db, tipo) => {
+    if (tipo === 'mssql') {
+      const result = await db.request()
+        .input('idRender', sql.Int, idRender)
+        .input('url', sql.VarChar(500), data.URL || '')
+        .input('usage', sql.Decimal(18, 4), usage)
+        .query(`
+          INSERT INTO RENDER_APPS (IDRENDER, URL, [USAGE])
+          OUTPUT INSERTED.IDSERVICIO, INSERTED.IDRENDER, INSERTED.URL, INSERTED.[USAGE]
+          VALUES (@idRender, @url, @usage)
+        `);
+      return mapRenderApp(result.recordset[0]);
+    }
+
+    const [result] = await db.query(
+      'INSERT INTO RENDER_APPS (IDRENDER, URL, `USAGE`) VALUES (?, ?, ?)',
+      [idRender, data.URL || '', usage]
+    );
+    const [rows] = await db.query(
+      'SELECT IDSERVICIO, IDRENDER, URL, `USAGE` AS `USAGE` FROM RENDER_APPS WHERE IDSERVICIO = ?',
+      [result.insertId]
+    );
+    return mapRenderApp(rows[0]);
+  });
+}
+
+async function updateRenderApp(conexion, id, data) {
+  const idRender = parseInt(data.IDRENDER, 10);
+  if (!Number.isFinite(idRender)) throw new Error('IDRENDER es obligatorio');
+  const usage = parseUsageValue(data.USAGE);
+
+  return withHostingConnection(conexion, async (db, tipo) => {
+    if (tipo === 'mssql') {
+      const result = await db.request()
+        .input('id', sql.Int, id)
+        .input('idRender', sql.Int, idRender)
+        .input('url', sql.VarChar(500), data.URL || '')
+        .input('usage', sql.Decimal(18, 4), usage)
+        .query(`
+          UPDATE RENDER_APPS
+          SET IDRENDER=@idRender, URL=@url, [USAGE]=@usage
+          OUTPUT INSERTED.IDSERVICIO, INSERTED.IDRENDER, INSERTED.URL, INSERTED.[USAGE]
+          WHERE IDSERVICIO = @id
+        `);
+      if (!result.recordset.length) throw new Error('App Render no encontrada');
+      return mapRenderApp(result.recordset[0]);
+    }
+
+    const [result] = await db.query(
+      'UPDATE RENDER_APPS SET IDRENDER=?, URL=?, `USAGE`=? WHERE IDSERVICIO=?',
+      [idRender, data.URL || '', usage, id]
+    );
+    if (!result.affectedRows) throw new Error('App Render no encontrada');
+    const [rows] = await db.query(
+      'SELECT IDSERVICIO, IDRENDER, URL, `USAGE` AS `USAGE` FROM RENDER_APPS WHERE IDSERVICIO = ?',
+      [id]
+    );
+    return mapRenderApp(rows[0]);
+  });
+}
+
+async function deleteRenderApp(conexion, id) {
+  return withHostingConnection(conexion, async (db, tipo) => {
+    if (tipo === 'mssql') {
+      const result = await db.request()
+        .input('id', sql.Int, id)
+        .query('DELETE FROM RENDER_APPS WHERE IDSERVICIO = @id');
+      if (!result.rowsAffected[0]) throw new Error('App Render no encontrada');
+      return { ok: true };
+    }
+
+    const [result] = await db.query('DELETE FROM RENDER_APPS WHERE IDSERVICIO = ?', [id]);
+    if (!result.affectedRows) throw new Error('App Render no encontrada');
+    return { ok: true };
+  });
+}
+
 module.exports = {
   withHostingConnection,
   ensureSoporteTable,
@@ -801,4 +1053,13 @@ module.exports = {
   createServicioOnline,
   updateServicioOnline,
   deleteServicioOnline,
+  listRenderCuentas,
+  getRenderCuenta,
+  createRenderCuenta,
+  updateRenderCuenta,
+  deleteRenderCuenta,
+  listRenderApps,
+  createRenderApp,
+  updateRenderApp,
+  deleteRenderApp,
 };

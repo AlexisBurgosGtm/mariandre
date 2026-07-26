@@ -5,6 +5,7 @@ const sql = require('mssql');
 const mysql = require('mysql2/promise');
 const whatsapp = require('./whatsapp');
 const hostingDb = require('./hostingDb');
+const renderApi = require('./renderApi');
 const appPaths = require('./appPaths');
 
 const PORT = Number(process.env.PORT) || 9006;
@@ -909,6 +910,110 @@ function createApp() {
     try {
       const { conexion } = await resolveHostingConexion();
       await hostingDb.deleteCommunityEmpresa(conexion, parseInt(req.params.id, 10));
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/render/cuentas', async (_req, res) => {
+    try {
+      const { conexion } = await resolveHostingConexion();
+      const rows = await hostingDb.listRenderCuentas(conexion);
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/render/cuentas', async (req, res) => {
+    try {
+      const { conexion } = await resolveHostingConexion();
+      const row = await hostingDb.createRenderCuenta(conexion, req.body);
+      res.status(201).json(row);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/render/cuentas/:id', async (req, res) => {
+    try {
+      const { conexion } = await resolveHostingConexion();
+      const row = await hostingDb.updateRenderCuenta(conexion, parseInt(req.params.id, 10), req.body);
+      res.json(row);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/render/cuentas/:id', async (req, res) => {
+    try {
+      const { conexion } = await resolveHostingConexion();
+      await hostingDb.deleteRenderCuenta(conexion, parseInt(req.params.id, 10));
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/render/cuentas/:id/usage', async (req, res) => {
+    try {
+      const { conexion } = await resolveHostingConexion();
+      const cuenta = await hostingDb.getRenderCuenta(conexion, parseInt(req.params.id, 10));
+      if (!cuenta.APIKEY) {
+        return res.status(400).json({ error: 'La cuenta no tiene APIKEY configurada' });
+      }
+      const usage = await renderApi.getAccountUsageHours(cuenta.APIKEY);
+      res.json({
+        cuenta: {
+          IDRENDER: cuenta.IDRENDER,
+          EMAIL: cuenta.EMAIL,
+        },
+        ...usage,
+      });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/render/apps', async (req, res) => {
+    try {
+      const { conexion } = await resolveHostingConexion();
+      const idRender = parseInt(req.query.idRender, 10);
+      if (!Number.isFinite(idRender)) {
+        return res.status(400).json({ error: 'idRender requerido' });
+      }
+      const rows = await hostingDb.listRenderApps(conexion, idRender, req.query.search || '');
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/render/apps', async (req, res) => {
+    try {
+      const { conexion } = await resolveHostingConexion();
+      const row = await hostingDb.createRenderApp(conexion, req.body);
+      res.status(201).json(row);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/render/apps/:id', async (req, res) => {
+    try {
+      const { conexion } = await resolveHostingConexion();
+      const row = await hostingDb.updateRenderApp(conexion, parseInt(req.params.id, 10), req.body);
+      res.json(row);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/render/apps/:id', async (req, res) => {
+    try {
+      const { conexion } = await resolveHostingConexion();
+      await hostingDb.deleteRenderApp(conexion, parseInt(req.params.id, 10));
       res.json({ ok: true });
     } catch (err) {
       res.status(400).json({ error: err.message });

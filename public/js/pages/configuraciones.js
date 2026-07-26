@@ -32,7 +32,7 @@ export async function renderConfiguraciones(container) {
         <div class="space-y-2">
           <h3 class="flex items-center gap-2 text-base font-semibold text-slate-800"><i class="fa-solid fa-server"></i> Hosting principal</h3>
           <p class="text-sm text-slate-500">
-            Selecciona la conexión que usarán las secciones <strong>Soporte Clientes</strong> y <strong>Updater</strong>.
+            Selecciona la conexión que usarán las secciones <strong>Soporte Clientes</strong>, <strong>Updater</strong>, <strong>Tokens</strong> y <strong>Render Apps</strong>.
           </p>
 
           ${!conexiones.length ? `

@@ -4,6 +4,7 @@ import { renderConexiones, openNewConexionModal, cleanupConexionesPage } from '.
 import { renderMantenimiento, openNewComandoModal } from './pages/mantenimiento.js';
 import { renderWhatsapp, cleanupWhatsappPage } from './pages/whatsapp.js';
 import { renderServiciosOnline, openNewServicioModal, cleanupServiciosOnlinePage } from './pages/servicios-online.js';
+import { renderRenderApps, openNewRenderCuentaModal, openNewRenderAppModal } from './pages/render-apps.js';
 import { renderSoporteClientes, openNewSoporteModal } from './pages/soporte-clientes.js';
 import { renderUpdater, openNewUpdaterModal } from './pages/updater.js';
 import { renderTokens, openNewTokenModal, openNewCommunityModal } from './pages/tokens.js';
@@ -19,6 +20,7 @@ const routes = {
   '/': { title: 'Inicio', icon: 'fa-house', render: renderHome },
   '/conexiones': { title: 'Conexiones', icon: 'fa-plug', render: renderConexiones },
   '/servicios-online': { title: 'Servicios Online', icon: 'fa-globe', render: renderServiciosOnline },
+  '/render-apps': { title: 'Render Apps', icon: 'fa-cloud', render: renderRenderApps },
   '/soporte-clientes': { title: 'Soporte Clientes', icon: 'fa-headset', render: renderSoporteClientes },
   '/updater': { title: 'Updater', icon: 'fa-database', render: renderUpdater },
   '/tokens': { title: 'Tokens', icon: 'fa-key', render: renderTokens },
@@ -102,6 +104,9 @@ function renderTopbarActions(routePath = currentRoute) {
 
   if (routePath === '/conexiones') extra = actionBtn('btn-add-conexion', 'Nueva conexión');
   else if (routePath === '/servicios-online') extra = actionBtn('btn-add-servicio', 'Nuevo servicio');
+  else if (routePath === '/render-apps') {
+    extra = `${actionBtn('btn-add-render-cuenta', 'Nueva cuenta')} ${actionBtn('btn-add-render-app-top', 'Nueva app', 'fa-cube', 'ghost')}`;
+  }
   else if (routePath === '/soporte-clientes') extra = actionBtn('btn-add-soporte', 'Nuevo registro');
   else if (routePath === '/updater') extra = actionBtn('btn-add-updater', 'Nueva query');
   else if (routePath === '/tokens') {
@@ -113,6 +118,10 @@ function renderTopbarActions(routePath = currentRoute) {
 
   if (routePath === '/conexiones') document.getElementById('btn-add-conexion')?.addEventListener('click', openNewConexionModal);
   else if (routePath === '/servicios-online') document.getElementById('btn-add-servicio')?.addEventListener('click', openNewServicioModal);
+  else if (routePath === '/render-apps') {
+    document.getElementById('btn-add-render-cuenta')?.addEventListener('click', openNewRenderCuentaModal);
+    document.getElementById('btn-add-render-app-top')?.addEventListener('click', openNewRenderAppModal);
+  }
   else if (routePath === '/soporte-clientes') document.getElementById('btn-add-soporte')?.addEventListener('click', openNewSoporteModal);
   else if (routePath === '/updater') document.getElementById('btn-add-updater')?.addEventListener('click', openNewUpdaterModal);
   else if (routePath === '/tokens') {
@@ -171,6 +180,10 @@ async function reloadCurrentPage() {
     await window.__reloadTokensPage();
     return;
   }
+  if (currentRoute === '/render-apps' && window.__reloadRenderAppsPage) {
+    await window.__reloadRenderAppsPage();
+    return;
+  }
   await renderPage();
 }
 
@@ -218,6 +231,9 @@ window.__reloadUpdater = async () => {
 };
 window.__reloadTokens = async () => {
   if (currentRoute === '/tokens') await reloadCurrentPage();
+};
+window.__reloadRenderApps = async () => {
+  if (currentRoute === '/render-apps') await reloadCurrentPage();
 };
 window.__reloadAlarmas = async () => {
   if (currentRoute === '/alarmas') await reloadCurrentPage();
