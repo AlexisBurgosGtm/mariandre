@@ -10,3 +10,4 @@ google-credentials.json
 google-tokens.json
 build/puppeteer-cache/
 puppeteer-cache/
+license-keys/

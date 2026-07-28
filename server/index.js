@@ -7,6 +7,7 @@ const whatsapp = require('./whatsapp');
 const hostingDb = require('./hostingDb');
 const renderApi = require('./renderApi');
 const appPaths = require('./appPaths');
+const licenseGenerator = require('./license-generator');
 
 const PORT = Number(process.env.PORT) || 9006;
 
@@ -383,8 +384,71 @@ async function executeQuery(conexion, query) {
 
 function createApp() {
   const app = express();
-  app.use(express.json());
+  app.use(express.json({ limit: '1mb' }));
   app.use(express.static(appPaths.publicPath()));
+
+  app.get('/api/license-gen/catalog', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      res.json(licenseGenerator.getCatalog());
+    } catch (err) {
+      res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/license-gen/issue', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      res.json(licenseGenerator.issueLicense(req.body || {}));
+    } catch (err) {
+      res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/license-gen/issue-and-upload', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const token = String(req.body?.token || '').trim();
+      if (!token) {
+        return res.status(400).json({ error: 'Seleccione un token (cliente / instalación)' });
+      }
+      const { conexion } = await resolveHostingConexion();
+      const tokens = await hostingDb.listTokensAdmin(conexion);
+      const row = tokens.find(
+        (t) => String(t.TOKEN || '').trim().toUpperCase() === token.toUpperCase()
+      );
+      if (!row) {
+        return res.status(404).json({ error: 'Token no encontrado en la tabla TOKENS' });
+      }
+      const customer =
+        String(row.EMPRESA || '').trim() || String(row.TOKEN || '').trim();
+      const issued = licenseGenerator.issueLicense({
+        customer,
+        expiresAt: req.body?.expiresAt || null,
+        notes: req.body?.notes || '',
+        menus: req.body?.menus || [],
+        modules: req.body?.modules || [],
+      });
+      await hostingDb.uploadTokenLicencia(conexion, token, issued.license);
+      res.json({
+        ...issued,
+        uploaded: true,
+        token: row.TOKEN,
+        empresa: row.EMPRESA,
+      });
+    } catch (err) {
+      res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/license-gen/public-key', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      res.type('text/plain').send(licenseGenerator.getPublicKeyPem());
+    } catch (err) {
+      res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  });
 
   app.get('/api/conexiones', async (_req, res) => {
     try {

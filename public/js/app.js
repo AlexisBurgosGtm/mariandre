@@ -10,6 +10,7 @@ import { renderUpdater, openNewUpdaterModal } from './pages/updater.js';
 import { renderTokens, openNewTokenModal, openNewCommunityModal } from './pages/tokens.js';
 import { renderConfiguraciones } from './pages/configuraciones.js';
 import { renderAlarmas, openNewAlarmaModal } from './pages/alarmas.js';
+import { renderGeneradorLicencias } from './pages/generador-licencias.js';
 import { initWhatsAppListener } from './services/whatsapp.js';
 import { initAlarmas } from './services/alarmas.js';
 import { initTts } from './tts.js';
@@ -18,12 +19,13 @@ import { tw, cx } from './ui.js';
 
 const routes = {
   '/': { title: 'Inicio', icon: 'fa-house', render: renderHome },
+  '/generador-licencias': { title: 'Generador Licencias', icon: 'fa-certificate', render: renderGeneradorLicencias },
   '/conexiones': { title: 'Conexiones', icon: 'fa-plug', render: renderConexiones },
   '/servicios-online': { title: 'Servicios Online', icon: 'fa-globe', render: renderServiciosOnline },
   '/render-apps': { title: 'Render Apps', icon: 'fa-cloud', render: renderRenderApps },
   '/soporte-clientes': { title: 'Soporte Clientes', icon: 'fa-headset', render: renderSoporteClientes },
   '/updater': { title: 'Updater', icon: 'fa-database', render: renderUpdater },
-  '/tokens': { title: 'Tokens', icon: 'fa-key', render: renderTokens },
+  '/tokens': { title: 'Tokens', icon: 'fa-key', render: renderTokens },  
   '/mantenimiento': { title: 'Mantenimiento DB', icon: 'fa-screwdriver-wrench', render: renderMantenimiento },
   '/alarmas': { title: 'Alarmas', icon: 'fa-bell', render: renderAlarmas },
   '/whatsapp': { title: 'Whatsapp', icon: 'fa-brands fa-whatsapp', render: renderWhatsapp },

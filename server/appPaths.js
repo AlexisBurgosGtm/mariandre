@@ -96,6 +96,7 @@ async function copyIfMissing(source, target, fallbackContent) {
 
 async function ensureDataFiles() {
   await fs.mkdir(getDataDir(), { recursive: true });
+  await fs.mkdir(path.join(getDataDir(), 'data'), { recursive: true });
 
   await copyIfMissing(
     path.join(getBundleDir(), 'conexiones.json'),

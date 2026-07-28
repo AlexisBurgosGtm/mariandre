@@ -319,19 +319,77 @@ function normalizeActivo(value) {
 
 async function listTokensAdmin(conexion) {
   return withHostingConnection(conexion, async (db, tipo) => {
-    const query = 'SELECT TOKEN, EMPRESA, ACTIVO FROM TOKENS ORDER BY EMPRESA';
-    if (tipo === 'mssql') {
-      const result = await db.request().query(query);
-      return (result.recordset || []).map((row) => ({
+    // Incluye indicador de licencia si la columna LICENCIA existe; si no, solo TOKEN/EMPRESA/ACTIVO.
+    const queryWithLic = `
+      SELECT TOKEN, EMPRESA, ACTIVO,
+        CASE WHEN LICENCIA IS NULL OR LTRIM(RTRIM(CAST(LICENCIA AS NVARCHAR(MAX)))) = '' THEN 0 ELSE 1 END AS HAS_LICENCIA
+      FROM TOKENS
+      ORDER BY EMPRESA
+    `;
+    const queryBasic = 'SELECT TOKEN, EMPRESA, ACTIVO FROM TOKENS ORDER BY EMPRESA';
+
+    const mapRows = (rows) =>
+      (rows || []).map((row) => ({
         ...normalizeRow(row),
         ACTIVO: normalizeActivo(row.ACTIVO),
+        HAS_LICENCIA: Number(row.HAS_LICENCIA) === 1,
       }));
+
+    if (tipo === 'mssql') {
+      try {
+        const result = await db.request().query(queryWithLic);
+        return mapRows(result.recordset);
+      } catch (err) {
+        const msg = String(err.message || '');
+        if (!/LICENCIA|Invalid column/i.test(msg)) throw err;
+        const result = await db.request().query(queryBasic);
+        return mapRows(result.recordset);
+      }
     }
-    const [rows] = await db.query(query);
-    return rows.map((row) => ({
-      ...normalizeRow(row),
-      ACTIVO: normalizeActivo(row.ACTIVO),
-    }));
+
+    try {
+      const [rows] = await db.query(queryWithLic);
+      return mapRows(rows);
+    } catch (err) {
+      const msg = String(err.message || '');
+      if (!/LICENCIA|Unknown column/i.test(msg)) throw err;
+      const [rows] = await db.query(queryBasic);
+      return mapRows(rows);
+    }
+  });
+}
+
+async function uploadTokenLicencia(conexion, tokenKey, licenseDoc) {
+  const token = String(tokenKey || '').trim();
+  if (!token) throw new Error('TOKEN requerido');
+  if (!licenseDoc || typeof licenseDoc !== 'object') {
+    throw new Error('Documento de licencia inválido');
+  }
+  if (!licenseDoc.payload || !licenseDoc.signature) {
+    throw new Error('La licencia debe incluir payload y signature');
+  }
+  const licenciaJson = JSON.stringify(licenseDoc);
+
+  return withHostingConnection(conexion, async (db, tipo) => {
+    if (tipo === 'mssql') {
+      const result = await db.request()
+        .input('token', sql.VarChar(100), token)
+        .input('licencia', sql.NVarChar(sql.MAX), licenciaJson)
+        .query(`
+          UPDATE TOKENS
+          SET LICENCIA = @licencia
+          WHERE LTRIM(RTRIM(CAST(TOKEN AS VARCHAR(100)))) = LTRIM(RTRIM(@token))
+        `);
+      if (!result.rowsAffected[0]) throw new Error('Token no encontrado');
+      return { ok: true, token };
+    }
+
+    const [result] = await db.query(
+      'UPDATE TOKENS SET LICENCIA = ? WHERE TRIM(TOKEN) = TRIM(?)',
+      [licenciaJson, token]
+    );
+    if (!result.affectedRows) throw new Error('Token no encontrado');
+    return { ok: true, token };
   });
 }
 
@@ -1039,6 +1097,7 @@ module.exports = {
   deleteUpdateQuery,
   todayIsoDate,
   listTokensAdmin,
+  uploadTokenLicencia,
   createTokenAdmin,
   updateTokenAdmin,
   toggleTokenActivo,

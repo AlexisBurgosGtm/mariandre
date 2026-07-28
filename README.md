@@ -30,12 +30,17 @@ npm start
 
 Abre el navegador en [http://localhost:9006](http://localhost:9006).
 
-Variables de entorno opcionales:
+## Variables de entorno opcionales
 
 | Variable | Descripción | Default |
 |----------|-------------|---------|
 | `PORT` | Puerto del servidor | `9006` |
 | `DATA_DIR` | Carpeta de datos JSON / auth | raíz del proyecto |
+| `ONNEB_ROOT` | Ruta al proyecto OnneB (`pos_onneb`) para el generador de licencias | carpeta hermana `../pos_onneb` |
+
+## Generador de licencias OnneB
+
+La sección **Generador Licencias** emite archivos `.json` firmados para instalaciones OnneB. El catálogo se lee en vivo desde OnneB (`MENU_GROUPS`). En el POS del cliente se cargan en **Configuraciones → Licencia**.
 
 ## Estructura de conexiones (`conexiones.json`)
 

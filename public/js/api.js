@@ -83,4 +83,9 @@ export const api = {
   updateAlarma: (id, data) => request(`/alarmas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   dispararAlarma: (id) => request(`/alarmas/${id}/disparar`, { method: 'POST' }),
   deleteAlarma: (id) => request(`/alarmas/${id}`, { method: 'DELETE' }),
+  getLicenseGenCatalog: () => request('/license-gen/catalog'),
+  issueLicense: (data) => request('/license-gen/issue', { method: 'POST', body: JSON.stringify(data) }),
+  issueAndUploadLicense: (data) =>
+    request('/license-gen/issue-and-upload', { method: 'POST', body: JSON.stringify(data) }),
+  getLicenseGenPublicKey: () => fetch('/api/license-gen/public-key').then((r) => r.text()),
 };
