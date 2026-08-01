@@ -4,7 +4,7 @@ export const tw = {
   glass:
     'border border-slate-200/80 bg-white/80 shadow-sm backdrop-blur-xl',
   panel:
-    'rounded-3xl border border-slate-200/80 bg-white/80 p-4 shadow-sm backdrop-blur-xl sm:p-5',
+    'max-w-full rounded-3xl border border-slate-200/80 bg-white/80 p-3 shadow-sm backdrop-blur-xl sm:p-5',
   btn:
     'inline-flex items-center justify-center gap-2 rounded-full border border-transparent px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50',
   btnPrimary:
@@ -21,7 +21,7 @@ export const tw = {
     'w-full rounded-2xl border border-slate-200 bg-white/90 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20',
   label:
     'mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-500',
-  formGrid: 'grid grid-cols-1 gap-4 sm:grid-cols-2',
+  formGrid: 'grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4',
   formGroup: 'flex flex-col',
   formGroupFull: 'flex flex-col sm:col-span-2',
   formActions: 'mt-4 flex flex-wrap justify-end gap-2',
@@ -38,7 +38,7 @@ export const tw = {
   modalOverlay:
     'fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 backdrop-blur-sm sm:items-center sm:p-4',
   modal:
-    'flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-xl sm:max-w-xl sm:rounded-3xl',
+    'flex max-h-[92vh] w-full max-w-[100vw] flex-col overflow-hidden rounded-t-3xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-xl sm:max-w-xl sm:rounded-3xl',
   table:
     'w-full border-collapse text-left text-sm',
   th:
@@ -54,8 +54,8 @@ export const tw = {
   statusChecking: 'font-semibold text-amber-600',
   statusMuted: 'font-semibold text-slate-400',
   card:
-    'flex flex-col gap-3 rounded-3xl border border-slate-200/80 bg-white/80 p-4 shadow-sm backdrop-blur-xl transition',
-  cardGrid: 'grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3',
+    'flex min-w-0 flex-col gap-3 rounded-3xl border border-slate-200/80 bg-white/80 p-3 shadow-sm backdrop-blur-xl transition sm:p-4',
+  cardGrid: 'grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3',
   cardRingOnline: 'ring-2 ring-green-400/50',
   cardRingOffline: 'ring-2 ring-red-400/50',
   cardRingChecking: 'ring-2 ring-amber-400/50',
@@ -64,8 +64,8 @@ export const tw = {
   hostingBannerWarn:
     'mb-4 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-900 shadow-sm backdrop-blur-xl',
   tablePanel:
-    'overflow-x-auto rounded-3xl border border-slate-200/80 bg-white/80 p-4 shadow-sm backdrop-blur-xl sm:p-5',
-  tableToolbar: 'mb-4 flex flex-wrap items-center gap-3',
+    'max-w-full overflow-x-auto rounded-3xl border border-slate-200/80 bg-white/80 p-3 shadow-sm backdrop-blur-xl sm:p-5',
+  tableToolbar: 'mb-4 flex flex-wrap items-center gap-2 sm:gap-3',
   tableEmpty: 'px-3 py-8 text-center text-sm text-slate-500',
   tableActions: 'flex flex-wrap items-center gap-1.5 whitespace-nowrap',
   tableTag:
@@ -74,9 +74,9 @@ export const tw = {
     'inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700',
   tableTagMuted:
     'inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500',
-  queryPreview: 'block max-w-md truncate font-mono text-xs text-slate-600',
+  queryPreview: 'block max-w-[min(28rem,70vw)] truncate font-mono text-xs text-slate-600',
   sqlResult:
-    'mt-4 max-h-80 overflow-auto rounded-2xl border border-slate-200 bg-slate-950 p-4 font-mono text-xs text-slate-100',
+    'mt-4 max-h-80 max-w-full overflow-auto rounded-2xl border border-slate-200 bg-slate-950 p-3 font-mono text-xs text-slate-100 sm:p-4',
   code: 'rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700',
 };
 

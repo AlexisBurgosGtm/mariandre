@@ -8,6 +8,26 @@
   html,
   body {
     @apply h-full overflow-hidden bg-slate-100 font-sans text-slate-900 antialiased;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+  }
+
+  #app {
+    width: 100%;
+    max-width: 100dvw;
+    overflow: hidden;
+  }
+
+  #content {
+    overflow-x: hidden;
+  }
+
+  /* Tablas anchas: scroll solo dentro del panel, no del viewport */
+  #content .overflow-x-auto {
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
   }
 
   button,
@@ -19,6 +39,13 @@
 
   textarea {
     @apply min-h-24 resize-y;
+  }
+
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
   }
 }
 

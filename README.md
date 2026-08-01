@@ -16,12 +16,6 @@ Aplicación web (Express + SPA en vanilla JavaScript) para gestionar conexiones 
 npm install
 ```
 
-Opcional, para WhatsApp (predescargar Chromium):
-
-```bash
-npm run chromium
-```
-
 ## Ejecutar
 
 ```bash
@@ -74,5 +68,5 @@ Cada conexión incluye el campo `tipo` para identificar el motor:
 
 - Node.js + Express
 - mssql / mysql2
-- whatsapp-web.js
+- Baileys (`@whiskeysockets/baileys`)
 - Font Awesome 6

@@ -4,10 +4,12 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
+.baileys_auth/
 .wwebjs_auth/
 .wwebjs_cache/
 google-credentials.json
 google-tokens.json
 build/puppeteer-cache/
 puppeteer-cache/
+puppeteerCache/
 license-keys/

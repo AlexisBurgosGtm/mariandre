@@ -6,6 +6,8 @@ let pageState = {
   selectedIdRender: null,
   cuentaSearch: '',
   appSearch: '',
+  globalAppSearch: '',
+  globalAppResults: [],
   cuentas: [],
   apps: [],
 };
@@ -24,6 +26,25 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text ?? '';
   return div.innerHTML;
+}
+
+function toAppHref(url) {
+  const value = String(url || '').trim();
+  if (!value) return '';
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://${value}`;
+}
+
+function renderAppUrlLink(url, extraClass = '') {
+  const href = toAppHref(url);
+  if (!href) return '—';
+  return `<a
+    href="${escapeHtml(href)}"
+    target="_blank"
+    rel="noopener noreferrer"
+    class="${cx('text-blue-600 underline decoration-blue-300 underline-offset-2 transition hover:text-blue-700', extraClass)}"
+    title="${escapeHtml(url)}"
+  >${escapeHtml(url)}</a>`;
 }
 
 function filterCuentas(rows, search) {
@@ -230,7 +251,7 @@ function renderAppsTable(rows) {
       <tbody>
         ${rows.map((r) => `
           <tr>
-            <td class="${tdCls}"><span class="block max-w-[16rem] truncate" title="${escapeHtml(r.URL || '')}">${escapeHtml(r.URL || '')}</span></td>
+            <td class="${tdCls}"><span class="block max-w-[16rem] truncate">${renderAppUrlLink(r.URL, 'block truncate')}</span></td>
             <td class="${tdCls} tabular-nums">${escapeHtml(r.USAGE ?? 0)}</td>
             <td class="${cx(tdCls, tw.tableActions)}">
               <button type="button" class="${cx(tw.btnGhost, 'px-2 py-1 text-[10px]')} btn-edit-app" data-id="${escapeHtml(r.IDSERVICIO)}" title="Editar"><i class="fa-solid fa-pen"></i></button>
@@ -241,6 +262,74 @@ function renderAppsTable(rows) {
       </tbody>
     </table>
   `;
+}
+
+function renderGlobalAppsResults(rows, search) {
+  const q = (search || '').trim();
+  if (!q) {
+    return `<p class="px-2 py-3 text-center text-xs text-slate-400">Escribe para buscar apps en todas las cuentas</p>`;
+  }
+  if (!rows.length) {
+    return `<p class="px-2 py-3 text-center text-xs text-slate-500">Sin resultados para “${escapeHtml(q)}”</p>`;
+  }
+
+  return `
+    <table class="${tableCls}">
+      <thead>
+        <tr>
+          <th class="${thCls}">URL</th>
+          <th class="${thCls}">Cuenta</th>
+          <th class="${thCls}">Usage</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map((r) => `
+          <tr class="${cx(rowBase, 'global-app-row')}" data-idrender="${escapeHtml(r.IDRENDER)}" title="Ver cuenta">
+            <td class="${tdCls}"><span class="block max-w-xl truncate">${renderAppUrlLink(r.URL, 'block truncate')}</span></td>
+            <td class="${tdCls}">${escapeHtml(r.CUENTA_EMAIL || `ID ${r.IDRENDER}`)}</td>
+            <td class="${tdCls} tabular-nums">${escapeHtml(r.USAGE ?? 0)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+async function runGlobalAppSearch(container) {
+  const panel = container.querySelector('#global-apps-results');
+  if (!panel) return;
+
+  const q = pageState.globalAppSearch.trim();
+  if (!q) {
+    pageState.globalAppResults = [];
+    panel.innerHTML = renderGlobalAppsResults([], '');
+    return;
+  }
+
+  showTableLoader(panel, 'Buscando apps...');
+  try {
+    pageState.globalAppResults = await api.searchRenderApps(q);
+    panel.innerHTML = renderGlobalAppsResults(pageState.globalAppResults, q);
+    bindGlobalAppResults(container);
+  } catch (err) {
+    panel.innerHTML = `<p class="px-2 py-3 text-center text-xs text-red-600">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function bindGlobalAppResults(container) {
+  container.querySelectorAll('.global-app-row').forEach((row) => {
+    row.addEventListener('click', async (e) => {
+      if (e.target.closest('a')) return;
+      const idRender = row.dataset.idrender;
+      if (!idRender) return;
+      pageState.selectedIdRender = idRender;
+      container.querySelectorAll('.cuenta-row').forEach((r) => {
+        r.className = cx(rowBase, 'cuenta-row', String(r.dataset.id) === String(idRender) && rowSelected);
+      });
+      updateAppsPanelHeader(container);
+      await loadApps(container);
+    });
+  });
 }
 
 function updateAppsPanelHeader(container) {
@@ -539,7 +628,24 @@ export async function renderRenderApps(container) {
 
   container.innerHTML = `
     <div class="flex h-[calc(100dvh-7.5rem)] min-h-0 flex-col gap-2 overflow-hidden sm:h-[calc(100dvh-8rem)]">
-      <div class="shrink-0">${renderHostingBanner(hosting)}</div>
+      <div class="shrink-0 space-y-2">
+        ${renderHostingBanner(hosting)}
+        <div class="rounded-2xl border border-slate-200/80 bg-white/80 p-3 shadow-sm backdrop-blur-xl">
+          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h3 class="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+              <i class="fa-solid fa-magnifying-glass text-xs"></i> Buscar Render Apps
+            </h3>
+            <input
+              type="search"
+              id="global-app-search"
+              class="${cx(tw.input, 'max-w-md px-2.5 py-1.5 text-xs')}"
+              placeholder="Buscar URL o cuenta en todas las apps..."
+              value="${escapeHtml(pageState.globalAppSearch)}"
+            >
+          </div>
+          <div id="global-apps-results" class="max-h-40 overflow-auto">${renderGlobalAppsResults(pageState.globalAppResults, pageState.globalAppSearch)}</div>
+        </div>
+      </div>
       <div class="grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-3 xl:grid-cols-12 xl:grid-rows-1">
         <section class="${cx(panelCls, 'xl:col-span-8')}">
           <div class="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2">
@@ -566,6 +672,14 @@ export async function renderRenderApps(container) {
 
   bindCuentaEvents(container);
   bindAppEvents(container);
+  bindGlobalAppResults(container);
+
+  let globalSearchTimer = null;
+  container.querySelector('#global-app-search')?.addEventListener('input', (e) => {
+    pageState.globalAppSearch = e.target.value;
+    clearTimeout(globalSearchTimer);
+    globalSearchTimer = setTimeout(() => runGlobalAppSearch(container), 280);
+  });
 
   container.querySelector('#cuenta-search')?.addEventListener('input', (e) => {
     pageState.cuentaSearch = e.target.value;
@@ -590,6 +704,10 @@ export async function renderRenderApps(container) {
 
   if (pageState.selectedIdRender) {
     await loadApps(container);
+  }
+
+  if (pageState.globalAppSearch.trim()) {
+    await runGlobalAppSearch(container);
   }
 
   window.__renderAppsContainer = container;

@@ -190,6 +190,9 @@ const DEFAULT_CONFIG = {
   hosting: {
     principalConexionId: null,
   },
+  mercadosEfectivos: {
+    ventasConexionId: null,
+  },
 };
 
 function mergeConfig(data) {
@@ -199,6 +202,7 @@ function mergeConfig(data) {
     whatsapp: { ...DEFAULT_CONFIG.whatsapp, ...(data?.whatsapp || {}) },
     conexiones: { ...DEFAULT_CONFIG.conexiones, ...(data?.conexiones || {}) },
     hosting: { ...DEFAULT_CONFIG.hosting, ...(data?.hosting || {}) },
+    mercadosEfectivos: { ...DEFAULT_CONFIG.mercadosEfectivos, ...(data?.mercadosEfectivos || {}) },
   };
 }
 
@@ -775,6 +779,7 @@ function createApp() {
         whatsapp: { ...current.whatsapp, ...(req.body?.whatsapp || {}) },
         conexiones: { ...current.conexiones, ...(req.body?.conexiones || {}) },
         hosting: { ...current.hosting, ...(req.body?.hosting || {}) },
+        mercadosEfectivos: { ...current.mercadosEfectivos, ...(req.body?.mercadosEfectivos || {}) },
       });
       await writeConfig(updated);
       res.json(updated);
@@ -1048,6 +1053,16 @@ function createApp() {
         return res.status(400).json({ error: 'idRender requerido' });
       }
       const rows = await hostingDb.listRenderApps(conexion, idRender, req.query.search || '');
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/render/apps/search', async (req, res) => {
+    try {
+      const { conexion } = await resolveHostingConexion();
+      const rows = await hostingDb.listRenderAppsAll(conexion, req.query.search || '');
       res.json(rows);
     } catch (err) {
       res.status(500).json({ error: err.message });

@@ -1001,6 +1001,61 @@ async function listRenderApps(conexion, idRender, search = '') {
   });
 }
 
+async function listRenderAppsAll(conexion, search = '') {
+  const q = (search || '').trim();
+  if (!q) return [];
+  const term = `%${q}%`;
+
+  return withHostingConnection(conexion, async (db, tipo) => {
+    if (tipo === 'mssql') {
+      const result = await db.request()
+        .input('search', sql.VarChar(250), term)
+        .query(`
+          SELECT
+            a.IDSERVICIO,
+            a.IDRENDER,
+            a.URL,
+            a.[USAGE],
+            c.EMAIL AS CUENTA_EMAIL
+          FROM RENDER_APPS a
+          LEFT JOIN RENDER_CUENTAS c ON c.IDRENDER = a.IDRENDER
+          WHERE a.URL LIKE @search
+             OR c.EMAIL LIKE @search
+             OR CAST(a.IDSERVICIO AS VARCHAR(20)) LIKE @search
+             OR CAST(a.IDRENDER AS VARCHAR(20)) LIKE @search
+             OR CAST(a.[USAGE] AS VARCHAR(50)) LIKE @search
+          ORDER BY c.EMAIL, a.URL
+        `);
+      return (result.recordset || []).map((row) => ({
+        ...mapRenderApp(row),
+        CUENTA_EMAIL: row.CUENTA_EMAIL || '',
+      }));
+    }
+
+    const [rows] = await db.query(
+      `SELECT
+         a.IDSERVICIO,
+         a.IDRENDER,
+         a.URL,
+         a.\`USAGE\` AS \`USAGE\`,
+         c.EMAIL AS CUENTA_EMAIL
+       FROM RENDER_APPS a
+       LEFT JOIN RENDER_CUENTAS c ON c.IDRENDER = a.IDRENDER
+       WHERE a.URL LIKE ?
+          OR c.EMAIL LIKE ?
+          OR CAST(a.IDSERVICIO AS CHAR) LIKE ?
+          OR CAST(a.IDRENDER AS CHAR) LIKE ?
+          OR CAST(a.\`USAGE\` AS CHAR) LIKE ?
+       ORDER BY c.EMAIL, a.URL`,
+      [term, term, term, term, term]
+    );
+    return rows.map((row) => ({
+      ...mapRenderApp(row),
+      CUENTA_EMAIL: row.CUENTA_EMAIL || '',
+    }));
+  });
+}
+
 async function createRenderApp(conexion, data) {
   const idRender = parseInt(data.IDRENDER, 10);
   if (!Number.isFinite(idRender)) throw new Error('IDRENDER es obligatorio');
@@ -1118,6 +1173,7 @@ module.exports = {
   updateRenderCuenta,
   deleteRenderCuenta,
   listRenderApps,
+  listRenderAppsAll,
   createRenderApp,
   updateRenderApp,
   deleteRenderApp,

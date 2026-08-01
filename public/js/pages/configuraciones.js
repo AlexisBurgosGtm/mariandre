@@ -8,6 +8,30 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function renderConexionSelect({ id, selectedId, conexiones, label }) {
+  if (!conexiones.length) {
+    return `
+      <div class="${cx(tw.empty, 'mt-4 !p-6')}">
+        <p>No hay conexiones configuradas. Agrega una en la sección Conexiones.</p>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="${cx(tw.formGroupFull, 'mt-3')}">
+      <label class="${tw.label}" for="${id}">${label}</label>
+      <select class="${tw.input}" id="${id}">
+        <option value="">— Seleccionar conexión —</option>
+        ${conexiones.map((c) => `
+          <option value="${escapeHtml(c.id)}" ${String(c.id) === String(selectedId) ? 'selected' : ''}>
+            ${escapeHtml(c.nombre)} (${escapeHtml(c.tipo)} — ${escapeHtml(c.host)})
+          </option>
+        `).join('')}
+      </select>
+    </div>
+  `;
+}
+
 export async function renderConfiguraciones(container) {
   showLoader(container, 'Cargando configuración...');
 
@@ -24,7 +48,8 @@ export async function renderConfiguraciones(container) {
     return;
   }
 
-  const selectedId = config?.hosting?.principalConexionId || '';
+  const hostingId = config?.hosting?.principalConexionId || '';
+  const mercadosId = config?.mercadosEfectivos?.ventasConexionId || '';
 
   container.innerHTML = `
     <div class="space-y-4">
@@ -34,50 +59,77 @@ export async function renderConfiguraciones(container) {
           <p class="text-sm text-slate-500">
             Selecciona la conexión que usarán las secciones <strong>Soporte Clientes</strong>, <strong>Updater</strong>, <strong>Tokens</strong> y <strong>Render Apps</strong>.
           </p>
-
-          ${!conexiones.length ? `
-            <div class="${cx(tw.empty, 'mt-4 !p-6')}">
-              <p>No hay conexiones configuradas. Agrega una en la sección Conexiones.</p>
-            </div>
-          ` : `
-            <div class="${cx(tw.formGroupFull, 'mt-3')}">
-              <label class="${tw.label}" for="hosting-principal">Conexión de hosting</label>
-              <select class="${tw.input}" id="hosting-principal">
-                <option value="">— Seleccionar conexión —</option>
-                ${conexiones.map((c) => `
-                  <option value="${escapeHtml(c.id)}" ${String(c.id) === String(selectedId) ? 'selected' : ''}>
-                    ${escapeHtml(c.nombre)} (${escapeHtml(c.tipo)} — ${escapeHtml(c.host)})
-                  </option>
-                `).join('')}
-              </select>
-            </div>
+          ${renderConexionSelect({
+            id: 'hosting-principal',
+            selectedId: hostingId,
+            conexiones,
+            label: 'Conexión de hosting',
+          })}
+          ${conexiones.length ? `
             <div class="${tw.formActions}">
               <button type="button" class="${tw.btnPrimary}" id="btn-save-hosting">
-                <i class="fa-solid fa-floppy-disk"></i> Guardar configuración
+                <i class="fa-solid fa-floppy-disk"></i> Guardar hosting
               </button>
             </div>
-          `}
+          ` : ''}
+        </div>
+      </div>
+
+      <div class="${tw.panel}">
+        <div class="space-y-2">
+          <h3 class="flex items-center gap-2 text-base font-semibold text-slate-800"><i class="fa-solid fa-store"></i> Mercados Efectivos Ventas</h3>
+          <p class="text-sm text-slate-500">
+            Selecciona la conexión que usará la sección <strong>MERCADOS EFECTIVOS</strong>.
+          </p>
+          ${renderConexionSelect({
+            id: 'mercados-ventas',
+            selectedId: mercadosId,
+            conexiones,
+            label: 'Conexión Mercados Efectivos Ventas',
+          })}
+          ${conexiones.length ? `
+            <div class="${tw.formActions}">
+              <button type="button" class="${tw.btnPrimary}" id="btn-save-mercados">
+                <i class="fa-solid fa-floppy-disk"></i> Guardar mercados
+              </button>
+            </div>
+          ` : ''}
         </div>
       </div>
     </div>
   `;
 
-  const saveBtn = container.querySelector('#btn-save-hosting');
-  if (!saveBtn) return;
-
-  saveBtn.addEventListener('click', async () => {
+  container.querySelector('#btn-save-hosting')?.addEventListener('click', async () => {
     const select = container.querySelector('#hosting-principal');
     const principalConexionId = select.value || null;
-
     if (!principalConexionId) {
       showToast('Selecciona una conexión de hosting', 'error');
       return;
     }
-
+    const saveBtn = container.querySelector('#btn-save-hosting');
     saveBtn.disabled = true;
     try {
       await api.updateConfig({ hosting: { principalConexionId } });
       showToast('Hosting principal guardado', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  container.querySelector('#btn-save-mercados')?.addEventListener('click', async () => {
+    const select = container.querySelector('#mercados-ventas');
+    const ventasConexionId = select.value || null;
+    if (!ventasConexionId) {
+      showToast('Selecciona una conexión para Mercados Efectivos Ventas', 'error');
+      return;
+    }
+    const saveBtn = container.querySelector('#btn-save-mercados');
+    saveBtn.disabled = true;
+    try {
+      await api.updateConfig({ mercadosEfectivos: { ventasConexionId } });
+      showToast('Mercados Efectivos Ventas guardado', 'success');
     } catch (err) {
       showToast(err.message, 'error');
     } finally {

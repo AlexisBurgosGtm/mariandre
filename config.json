@@ -1,11 +1,15 @@
 {
   "whatsapp": {
-    "ttsAnnounceSenderOnly": false
+    "ttsAnnounceSenderOnly": false,
+    "omittedWords": ""
   },
   "conexiones": {
     "autoPing": true
   },
   "hosting": {
     "principalConexionId": "6"
+  },
+  "mercadosEfectivos": {
+    "ventasConexionId": "1"
   }
 }

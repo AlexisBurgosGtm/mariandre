@@ -1,9 +1,11 @@
+const fs = require('fs').promises;
 const qrcode = require('qrcode');
+const pino = require('pino');
 const appPaths = require('./appPaths');
-const { resolveChromiumExecutable } = require('./chromium');
 
 const MAX_MESSAGES = 100;
 const UNREAD_POLL_MS = 2500;
+const logger = pino({ level: 'silent' });
 
 const state = {
   status: 'idle',
@@ -12,55 +14,28 @@ const state = {
   info: null,
 };
 
-let client = null;
+let sock = null;
 let initializing = false;
+let reconnecting = false;
+let stopReconnect = false;
 let unreadPollTimer = null;
-let wwebLib = null;
+let baileysLib = null;
+let saveCreds = null;
 const sseClients = new Set();
 const messages = [];
 const processedMessageIds = new Set();
+const chatNameCache = new Map();
 let initialUnreadSyncDone = false;
 
-function getWhatsAppWeb() {
-  if (!wwebLib) {
-    wwebLib = appPaths.resolveModule('whatsapp-web.js');
+async function loadBaileys() {
+  if (!baileysLib) {
+    baileysLib = await import('@whiskeysockets/baileys');
   }
-  return wwebLib;
+  return baileysLib;
 }
 
 function getAuthPath() {
   return appPaths.whatsappAuthPath();
-}
-
-async function getPuppeteerOptions() {
-  const executablePath = await resolveChromiumExecutable();
-
-  return {
-    headless: true,
-    executablePath,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-software-rasterizer',
-      '--disable-extensions',
-    ],
-  };
-}
-
-function getClientOptions(puppeteerOptions) {
-  const { LocalAuth } = getWhatsAppWeb();
-
-  return {
-    authStrategy: new LocalAuth({ dataPath: getAuthPath() }),
-    puppeteer: puppeteerOptions,
-    webVersionCache: {
-      type: 'local',
-      path: appPaths.whatsappWebCachePath(),
-      strict: false,
-    },
-  };
 }
 
 function broadcast(event) {
@@ -95,17 +70,43 @@ function looksLikePhone(value) {
   return digits.length >= 8 && /^[\d+\s\-()]+$/.test(s);
 }
 
-function resolveDisplayNames(msg, contact, chat) {
-  const notifyName = msg.notifyName || msg._data?.notifyName || null;
-  const contactName = contact?.name || contact?.pushname || contact?.shortName || null;
-  const chatName = chat?.name || null;
+function toMsTimestamp(value) {
+  if (!value) return Date.now();
+  if (typeof value === 'number') return value > 1e12 ? value : value * 1000;
+  if (typeof value === 'bigint') return Number(value) * 1000;
+  if (typeof value?.toNumber === 'function') return value.toNumber() * 1000;
+  const n = Number(value);
+  return Number.isFinite(n) ? (n > 1e12 ? n : n * 1000) : Date.now();
+}
+
+function getMessageText(message, extractMessageContent) {
+  if (!message) return '';
+  const content = extractMessageContent(message) || message;
+  return (
+    content.conversation ||
+    content.extendedTextMessage?.text ||
+    content.imageMessage?.caption ||
+    content.videoMessage?.caption ||
+    content.documentMessage?.caption ||
+    content.buttonsResponseMessage?.selectedDisplayText ||
+    content.listResponseMessage?.title ||
+    content.templateButtonReplyMessage?.selectedDisplayText ||
+    ''
+  ).trim();
+}
+
+function resolveDisplayNames(msg, meta = {}) {
+  const notifyName = msg.pushName || null;
+  const contactName = meta.contactName || notifyName || null;
+  const chatName = meta.chatName || null;
 
   let displayName = chatName || contactName || notifyName || null;
   if (displayName && looksLikePhone(displayName)) {
     displayName = contactName && !looksLikePhone(contactName) ? contactName : notifyName;
   }
 
-  const fromLabel = contactName || notifyName || stripJid(msg.from) || 'desconocido';
+  const senderJid = msg.key?.participant || msg.key?.remoteJid || '';
+  const fromLabel = contactName || notifyName || stripJid(senderJid) || 'desconocido';
 
   return {
     from: fromLabel,
@@ -135,67 +136,66 @@ function trimProcessedIds() {
   keep.forEach((id) => processedMessageIds.add(id));
 }
 
-function isStatusMessage(msg) {
-  const from = (msg.from || '').toLowerCase();
-  const to = (msg.to || '').toLowerCase();
-
-  if (from.includes('status@broadcast') || to.includes('status@broadcast')) return true;
-  if (msg.type === 'status' || msg.type === 'story') return true;
-
-  return false;
+function isStatusJid(jid, isJidStatusBroadcast) {
+  if (!jid) return false;
+  if (typeof isJidStatusBroadcast === 'function' && isJidStatusBroadcast(jid)) return true;
+  return String(jid).includes('status@broadcast');
 }
 
-function hasTextBody(msg) {
-  return Boolean((msg.body || '').trim());
-}
-
-function shouldProcessMessage(msg) {
-  if (msg.fromMe) return false;
-  if (isStatusMessage(msg)) return false;
-  if (!hasTextBody(msg)) return false;
-  return true;
-}
-
-function buildMessageEntry(msg, meta = {}, options = {}) {
-  const names = resolveDisplayNames(msg, meta.contact, meta.chat);
+function buildMessageEntry(msg, meta = {}, options = {}, helpers = {}) {
+  const { extractMessageContent, getContentType } = helpers;
+  const body = getMessageText(msg.message, extractMessageContent);
+  const names = resolveDisplayNames(msg, meta);
+  const remote = msg.key?.remoteJid || '';
+  const type = getContentType?.(msg.message) || 'chat';
 
   return {
-    id: msg.id?._serialized || `${Date.now()}-${Math.random()}`,
-    remoteJid: stripJid(msg.from || msg.author || ''),
+    id: msg.key?.id || `${Date.now()}-${Math.random()}`,
+    remoteJid: stripJid(remote),
     from: names.from,
     chatName: names.chatName,
     contactName: names.contactName,
-    body: (msg.body || '').trim(),
-    type: msg.type,
-    timestamp: msg.timestamp ? msg.timestamp * 1000 : Date.now(),
+    body,
+    type,
+    timestamp: toMsTimestamp(msg.messageTimestamp),
     fromMe: false,
     unread: Boolean(options.unread),
   };
 }
 
-async function enrichAndStore(msg, entry) {
-  let contact = null;
-  let chat = null;
+async function resolveChatName(remoteJid, isJidGroup) {
+  if (!remoteJid || !sock) return null;
+  if (chatNameCache.has(remoteJid)) return chatNameCache.get(remoteJid);
 
-  try {
-    chat = await Promise.race([
-      msg.getChat(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
-    ]);
-  } catch {
-    /* ignore */
+  if (typeof isJidGroup === 'function' && isJidGroup(remoteJid)) {
+    try {
+      const meta = await Promise.race([
+        sock.groupMetadata(remoteJid),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
+      ]);
+      const subject = meta?.subject || null;
+      if (subject) chatNameCache.set(remoteJid, subject);
+      return subject;
+    } catch {
+      return null;
+    }
   }
 
-  try {
-    contact = await Promise.race([
-      msg.getContact(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
-    ]);
-  } catch {
-    /* ignore */
-  }
+  return null;
+}
 
-  const enriched = buildMessageEntry(msg, { contact, chat }, { unread: entry.unread });
+async function enrichAndStore(msg, entry, helpers) {
+  const remoteJid = msg.key?.remoteJid || '';
+  const chatName = await resolveChatName(remoteJid, helpers.isJidGroup);
+  const enriched = buildMessageEntry(
+    msg,
+    {
+      chatName,
+      contactName: msg.pushName || entry.contactName || null,
+    },
+    { unread: entry.unread },
+    helpers
+  );
   enriched.id = entry.id;
   enriched.timestamp = entry.timestamp;
   addMessage(enriched);
@@ -205,54 +205,43 @@ function broadcastMessagesSync() {
   broadcast({ type: 'messages_sync', messages: [...messages], ...getPublicState() });
 }
 
-async function handleIncomingMessage(msg, options = {}) {
-  if (!shouldProcessMessage(msg)) return;
+async function handleIncomingMessage(msg, options = {}, helpers) {
+  if (!msg?.message || msg.key?.fromMe) return;
+  if (isStatusJid(msg.key?.remoteJid, helpers.isJidStatusBroadcast)) return;
 
-  const entry = buildMessageEntry(msg, {}, options);
+  const body = getMessageText(msg.message, helpers.extractMessageContent);
+  if (!body) return;
+
+  const entry = buildMessageEntry(msg, { contactName: msg.pushName || null }, options, helpers);
   if (processedMessageIds.has(entry.id)) return;
 
   processedMessageIds.add(entry.id);
   trimProcessedIds();
 
   addMessage(entry);
-  enrichAndStore(msg, entry).catch(() => {
+  enrichAndStore(msg, entry, helpers).catch(() => {
     /* ya guardado con datos básicos */
   });
 }
 
-function bindMessageEvents(waClient) {
-  waClient.removeAllListeners('message');
-  waClient.removeAllListeners('message_create');
-  waClient.on('message_create', (msg) => {
-    handleIncomingMessage(msg, { unread: true });
+function bindMessageEvents(waSock, helpers) {
+  waSock.ev.removeAllListeners('messages.upsert');
+  waSock.ev.on('messages.upsert', ({ messages: incoming, type }) => {
+    const unread = type === 'notify';
+    for (const msg of incoming || []) {
+      handleIncomingMessage(msg, { unread }, helpers);
+    }
   });
 }
 
 async function pollUnreadMessages() {
-  if (!client || state.status !== 'ready') return;
+  if (!sock || state.status !== 'ready') return;
 
   try {
-    const chats = await client.getChats();
-    const unreadChats = chats.filter((c) => c.unreadCount > 0);
-    let added = 0;
-
-    for (const chat of unreadChats) {
-      const limit = Math.min(chat.unreadCount + 2, 20);
-      const fetched = await chat.fetchMessages({ limit });
-
-      for (const msg of fetched) {
-        const id = msg.id?._serialized;
-        const isNew = Boolean(id && !processedMessageIds.has(id));
-        const beforeCount = messages.length;
-        await handleIncomingMessage(msg, { unread: isNew });
-        if (messages.length > beforeCount) added += 1;
-      }
-    }
-
+    // Baileys entrega mensajes en vivo vía messages.upsert; este poller
+    // solo sincroniza el estado público al front (equivalente al backup anterior).
     if (!initialUnreadSyncDone) {
       initialUnreadSyncDone = true;
-      broadcastMessagesSync();
-    } else if (added > 0) {
       broadcastMessagesSync();
     }
   } catch (err) {
@@ -273,84 +262,179 @@ function stopUnreadPoller() {
   }
 }
 
+async function clearAuthFolder() {
+  const authPath = getAuthPath();
+  try {
+    await fs.rm(authPath, { recursive: true, force: true });
+  } catch {
+    /* ignore */
+  }
+  try {
+    await fs.mkdir(authPath, { recursive: true });
+  } catch {
+    /* ignore */
+  }
+}
+
+function endSocket() {
+  if (!sock) return;
+  try {
+    sock.ev.removeAllListeners('connection.update');
+    sock.ev.removeAllListeners('creds.update');
+    sock.ev.removeAllListeners('messages.upsert');
+  } catch {
+    /* ignore */
+  }
+  try {
+    sock.end(undefined);
+  } catch {
+    /* ignore */
+  }
+  sock = null;
+  saveCreds = null;
+}
+
 function resetClientOnError(err) {
   state.status = 'error';
   state.error = err?.message || String(err);
-  client = null;
+  endSocket();
   initializing = false;
+  reconnecting = false;
   stopUnreadPoller();
   console.error('WhatsApp error:', err);
   broadcast({ type: 'status', ...getPublicState() });
 }
 
 async function createClient() {
-  if (client || initializing) return;
+  if (sock || initializing) return;
 
   initializing = true;
+  reconnecting = false;
+  stopReconnect = false;
   state.status = 'initializing';
   state.error = null;
   state.qr = null;
   broadcast({ type: 'status', ...getPublicState() });
 
   try {
-    const { Client } = getWhatsAppWeb();
-    const puppeteerOptions = await getPuppeteerOptions();
-    client = new Client(getClientOptions(puppeteerOptions));
+    const {
+      default: makeWASocket,
+      useMultiFileAuthState,
+      DisconnectReason,
+      fetchLatestBaileysVersion,
+      makeCacheableSignalKeyStore,
+      Browsers,
+      extractMessageContent,
+      getContentType,
+      isJidStatusBroadcast,
+      isJidGroup,
+    } = await loadBaileys();
 
-    client.on('qr', async (qr) => {
-      state.status = 'qr';
-      state.qr = await qrcode.toDataURL(qr);
-      state.error = null;
-      broadcast({ type: 'status', ...getPublicState() });
+    const helpers = { extractMessageContent, getContentType, isJidStatusBroadcast, isJidGroup };
+    const authPath = getAuthPath();
+    await fs.mkdir(authPath, { recursive: true });
+
+    const { state: authState, saveCreds: persistCreds } = await useMultiFileAuthState(authPath);
+    saveCreds = persistCreds;
+
+    let version;
+    try {
+      ({ version } = await fetchLatestBaileysVersion());
+    } catch {
+      version = undefined;
+    }
+
+    sock = makeWASocket({
+      version,
+      auth: {
+        creds: authState.creds,
+        keys: makeCacheableSignalKeyStore(authState.keys, logger),
+      },
+      logger,
+      browser: Browsers.ubuntu('Chrome'),
+      syncFullHistory: false,
+      markOnlineOnConnect: false,
+      generateHighQualityLinkPreview: false,
     });
 
-    client.on('authenticated', () => {
-      state.status = 'authenticated';
-      state.qr = null;
-      broadcast({ type: 'status', ...getPublicState() });
+    sock.ev.on('creds.update', persistCreds);
+
+    sock.ev.on('connection.update', async (update) => {
+      const { connection, lastDisconnect, qr } = update;
+
+      if (qr) {
+        state.status = 'qr';
+        state.qr = await qrcode.toDataURL(qr);
+        state.error = null;
+        broadcast({ type: 'status', ...getPublicState() });
+      }
+
+      if (connection === 'connecting') {
+        if (state.status !== 'qr') {
+          state.status = authState.creds?.me ? 'authenticated' : 'initializing';
+          broadcast({ type: 'status', ...getPublicState() });
+        }
+      }
+
+      if (connection === 'open') {
+        state.status = 'ready';
+        state.qr = null;
+        state.error = null;
+        initialUnreadSyncDone = false;
+        const user = sock.user || {};
+        state.info = {
+          pushname: user.name || user.verifiedName || user.notify || null,
+          wid: stripJid(user.id || user.lid || ''),
+        };
+        bindMessageEvents(sock, helpers);
+        startUnreadPoller();
+        initializing = false;
+        reconnecting = false;
+        broadcast({ type: 'status', ...getPublicState() });
+      }
+
+      if (connection === 'close') {
+        stopUnreadPoller();
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const loggedOut = statusCode === DisconnectReason.loggedOut;
+        const reason =
+          lastDisconnect?.error?.message ||
+          (loggedOut ? 'Sesión cerrada' : 'Desconectado');
+
+        endSocket();
+        initializing = false;
+
+        if (stopReconnect || loggedOut) {
+          state.status = loggedOut ? 'idle' : 'disconnected';
+          state.error = loggedOut ? null : reason;
+          state.info = null;
+          state.qr = null;
+          reconnecting = false;
+          broadcast({ type: 'status', ...getPublicState() });
+          return;
+        }
+
+        state.status = 'disconnected';
+        state.error = reason;
+        state.info = null;
+        broadcast({ type: 'status', ...getPublicState() });
+
+        if (!reconnecting) {
+          reconnecting = true;
+          setTimeout(() => {
+            reconnecting = false;
+            if (!stopReconnect && !sock && !initializing) {
+              createClient().catch((err) => resetClientOnError(err));
+            }
+          }, 2000);
+        }
+      }
     });
 
-    client.on('ready', () => {
-      state.status = 'ready';
-      state.qr = null;
-      state.error = null;
-      initialUnreadSyncDone = false;
-      state.info = client.info
-        ? {
-            pushname: client.info.pushname,
-            wid: client.info.wid?.user,
-          }
-        : null;
-      bindMessageEvents(client);
-      startUnreadPoller();
-      broadcast({ type: 'status', ...getPublicState() });
-    });
-
-    client.on('auth_failure', (msg) => {
-      state.status = 'error';
-      state.error = typeof msg === 'string' ? msg : 'Error de autenticación';
-      stopUnreadPoller();
-      broadcast({ type: 'status', ...getPublicState() });
-    });
-
-    client.on('disconnected', (reason) => {
-      state.status = 'disconnected';
-      state.error = reason || 'Desconectado';
-      state.info = null;
-      stopUnreadPoller();
-      client = null;
-      initializing = false;
-      broadcast({ type: 'status', ...getPublicState() });
-    });
-
-    bindMessageEvents(client);
-    await client.initialize();
+    bindMessageEvents(sock, helpers);
+    initializing = false;
   } catch (err) {
     resetClientOnError(err);
-  } finally {
-    if (state.status !== 'error') {
-      initializing = false;
-    }
   }
 }
 
@@ -379,30 +463,32 @@ function attachSse(req, res) {
 }
 
 async function startSession() {
-  if (client || initializing) {
+  if (sock || initializing) {
     return getPublicState();
   }
+  stopReconnect = false;
   await createClient();
   return getPublicState();
 }
 
 async function logoutSession() {
+  stopReconnect = true;
   stopUnreadPoller();
 
-  if (client) {
+  if (sock) {
     try {
-      await client.logout();
+      await sock.logout();
     } catch {
-      try {
-        await client.destroy();
-      } catch {
-        /* ignore */
-      }
+      /* ignore */
     }
-    client = null;
+    endSocket();
   }
 
+  await clearAuthFolder();
+  chatNameCache.clear();
+
   initializing = false;
+  reconnecting = false;
   state.status = 'idle';
   state.qr = null;
   state.error = null;
@@ -415,6 +501,7 @@ async function logoutSession() {
 }
 
 async function destroyWhatsApp() {
+  stopReconnect = true;
   stopUnreadPoller();
   sseClients.forEach((res) => {
     try {
@@ -424,16 +511,9 @@ async function destroyWhatsApp() {
     }
   });
   sseClients.clear();
-
-  if (client) {
-    try {
-      await client.destroy();
-    } catch {
-      /* ignore */
-    }
-    client = null;
-  }
+  endSocket();
   initializing = false;
+  reconnecting = false;
 }
 
 function getMessages() {
@@ -441,11 +521,17 @@ function getMessages() {
 }
 
 async function refreshSession() {
-  if (!client || state.status !== 'ready') {
+  if (!sock || state.status !== 'ready') {
     return getPublicState();
   }
 
-  bindMessageEvents(client);
+  const helpers = {
+    extractMessageContent: (await loadBaileys()).extractMessageContent,
+    getContentType: (await loadBaileys()).getContentType,
+    isJidStatusBroadcast: (await loadBaileys()).isJidStatusBroadcast,
+    isJidGroup: (await loadBaileys()).isJidGroup,
+  };
+  bindMessageEvents(sock, helpers);
   await pollUnreadMessages();
   broadcastMessagesSync();
   broadcast({ type: 'status', ...getPublicState() });

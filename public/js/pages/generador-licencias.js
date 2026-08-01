@@ -106,21 +106,7 @@ export async function renderGeneradorLicencias(container) {
 
   container.innerHTML = `
     <div class="space-y-4">
-      <div class="${tw.panel}">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p class="text-xs font-medium uppercase tracking-wide text-blue-600">Solo uso interno · OnneB</p>
-            <h2 class="mt-1 text-lg font-semibold text-slate-800">Generador de licencias</h2>
-            <p class="mt-1 text-sm text-slate-500">
-              Seleccione un <strong>TOKEN</strong> de la nube, marque módulos/vistas y genere la licencia.
-              Puede descargarla o subirla al campo <code class="${tw.code}">TOKENS.LICENCIA</code>.
-            </p>
-          </div>
-          <span class="${cx(tw.badge, 'bg-blue-50 text-blue-700')}">POS OnneB</span>
-        </div>
-        ${integrityWarn}
-        <p class="mt-3 text-xs text-slate-400">Fuente: ${escapeHtml(catalog.source || 'OnneB')}</p>
-      </div>
+      ${integrityWarn}
 
       <form id="lic-gen-form" class="space-y-4">
         <div class="${tw.panel}">
@@ -148,6 +134,9 @@ export async function renderGeneradorLicencias(container) {
           <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h3 class="text-base font-semibold text-slate-800">Módulos</h3>
             <div class="flex flex-wrap gap-2">
+              <button type="button" class="${cx(tw.btnGhost, tw.btnSm)}" id="lic-gen-reload" title="Recargar catálogo desde OnneB">
+                <i class="fa-solid fa-arrows-rotate"></i> Recargar
+              </button>
               <button type="button" class="${cx(tw.btnGhost, tw.btnSm)}" id="lic-gen-all">Marcar todos</button>
               <button type="button" class="${cx(tw.btnGhost, tw.btnSm)}" id="lic-gen-none">Ninguno</button>
             </div>
@@ -195,6 +184,10 @@ export async function renderGeneradorLicencias(container) {
 
   tokenSel?.addEventListener('change', syncUploadEnabled);
   syncUploadEnabled();
+
+  container.querySelector('#lic-gen-reload')?.addEventListener('click', () => {
+    renderGeneradorLicencias(container);
+  });
 
   modulesRoot?.querySelectorAll('.mod-card').forEach((card) => {
     syncModuleState(card);

@@ -1,6 +1,6 @@
 /**
  * Generador de licencias OnneB embebido en Mariandre.
- * Catálogo y firma leen el proyecto OnneB (MENU_GROUPS / claves).
+ * Catálogo y firma leen el proyecto OnneB (MENU_GROUPS / claves) en vivo.
  */
 const fs = require('fs');
 const path = require('path');
@@ -14,6 +14,8 @@ function resolveOnnebRoot() {
   const candidates = [
     path.join(appPaths.getBundleDir(), '..', 'pos_onneb'),
     path.join(__dirname, '..', '..', 'pos_onneb'),
+    path.join(__dirname, '..', '..', 'OnneB'),
+    path.join(__dirname, '..', '..', 'onneb'),
   ];
   for (const candidate of candidates) {
     const modulesPath = path.join(candidate, 'lib', 'license-modules.js');
@@ -22,7 +24,24 @@ function resolveOnnebRoot() {
   return null;
 }
 
+/** Evita catálogo obsoleto si OnneB cambió MENU_GROUPS sin reiniciar Mariandre. */
+function clearOnnebRequireCache(onnebRoot) {
+  const rootResolved = path.resolve(onnebRoot);
+  for (const key of Object.keys(require.cache)) {
+    const resolved = path.resolve(key);
+    if (
+      resolved === path.join(rootResolved, 'lib', 'license-modules.js') ||
+      resolved === path.join(rootResolved, 'lib', 'roles-usuarios.js') ||
+      resolved === path.join(rootResolved, 'lib', 'license.js') ||
+      resolved.startsWith(path.join(rootResolved, 'lib') + path.sep)
+    ) {
+      delete require.cache[key];
+    }
+  }
+}
+
 function loadOnnebLicenseLibs(onnebRoot) {
+  clearOnnebRequireCache(onnebRoot);
   const licenseModules = require(path.join(onnebRoot, 'lib', 'license-modules.js'));
   const { canonicalPayload } = require(path.join(onnebRoot, 'lib', 'license.js'));
   return { ...licenseModules, canonicalPayload };
@@ -86,14 +105,18 @@ function getGeneratorContext() {
 function getCatalog() {
   const { onnebRoot, libs, keys } = getGeneratorContext();
   const integrity = libs.assertLicenseCatalogIntegrity({ log: () => {} });
+  const modules = libs.licenseModulesCatalog();
+  const menuCount = modules.reduce((n, m) => n + (m.menus?.length || 0), 0);
   return {
-    modules: libs.licenseModulesCatalog(),
+    modules,
     coreMenus: [...libs.CORE_MENUS],
     source: 'OnneB lib/roles-usuarios.js → MENU_GROUPS',
     onnebRoot,
     keysDir: keys.keysDir,
     hasPrivateKey: fs.existsSync(keys.privateKeyPath),
     integrity,
+    moduleCount: modules.length,
+    menuCount,
   };
 }
 

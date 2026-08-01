@@ -11,6 +11,7 @@ import { renderTokens, openNewTokenModal, openNewCommunityModal } from './pages/
 import { renderConfiguraciones } from './pages/configuraciones.js';
 import { renderAlarmas, openNewAlarmaModal } from './pages/alarmas.js';
 import { renderGeneradorLicencias } from './pages/generador-licencias.js';
+import { renderMercadosEfectivos } from './pages/mercados-efectivos.js';
 import { initWhatsAppListener } from './services/whatsapp.js';
 import { initAlarmas } from './services/alarmas.js';
 import { initTts } from './tts.js';
@@ -23,6 +24,7 @@ const routes = {
   '/conexiones': { title: 'Conexiones', icon: 'fa-plug', render: renderConexiones },
   '/servicios-online': { title: 'Servicios Online', icon: 'fa-globe', render: renderServiciosOnline },
   '/render-apps': { title: 'Render Apps', icon: 'fa-cloud', render: renderRenderApps },
+  '/mercados-efectivos': { title: 'MERCADOS EFECTIVOS', icon: 'fa-store', render: renderMercadosEfectivos },
   '/soporte-clientes': { title: 'Soporte Clientes', icon: 'fa-headset', render: renderSoporteClientes },
   '/updater': { title: 'Updater', icon: 'fa-database', render: renderUpdater },
   '/tokens': { title: 'Tokens', icon: 'fa-key', render: renderTokens },  

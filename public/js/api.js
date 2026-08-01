@@ -51,6 +51,10 @@ export const api = {
     const params = new URLSearchParams({ idRender, search });
     return request(`/render/apps?${params}`);
   },
+  searchRenderApps: (search = '') => {
+    const params = new URLSearchParams({ search });
+    return request(`/render/apps/search?${params}`);
+  },
   createRenderApp: (data) => request('/render/apps', { method: 'POST', body: JSON.stringify(data) }),
   updateRenderApp: (id, data) => request(`/render/apps/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteRenderApp: (id) => request(`/render/apps/${id}`, { method: 'DELETE' }),

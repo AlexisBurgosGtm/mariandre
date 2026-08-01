@@ -50,15 +50,7 @@ function alarmasPath() {
 }
 
 function whatsappAuthPath() {
-  return path.join(getDataDir(), '.wwebjs_auth');
-}
-
-function puppeteerCachePath() {
-  return path.join(getDataDir(), 'puppeteer-cache');
-}
-
-function whatsappWebCachePath() {
-  return path.join(getDataDir(), '.wwebjs_cache');
+  return path.join(getDataDir(), '.baileys_auth');
 }
 
 function resolveModule(moduleName) {
@@ -128,9 +120,7 @@ async function ensureDataFiles() {
     '[]'
   );
 
-  await fs.mkdir(puppeteerCachePath(), { recursive: true });
   await fs.mkdir(whatsappAuthPath(), { recursive: true });
-  await fs.mkdir(whatsappWebCachePath(), { recursive: true });
 }
 
 function getAppInfo() {
@@ -151,8 +141,6 @@ module.exports = {
   serviciosOnlinePath,
   alarmasPath,
   whatsappAuthPath,
-  whatsappWebCachePath,
-  puppeteerCachePath,
   resolveModule,
   resolveModulePath,
   publicPath,
