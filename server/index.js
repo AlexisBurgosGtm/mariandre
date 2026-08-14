@@ -64,6 +64,24 @@ async function writeAlarmas(alarmas) {
   await fs.writeFile(appPaths.alarmasPath(), JSON.stringify(alarmas, null, 2), 'utf-8');
 }
 
+async function readLicenseTemplates() {
+  try {
+    const data = await fs.readFile(appPaths.licenseTemplatesPath(), 'utf-8');
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      await fs.writeFile(appPaths.licenseTemplatesPath(), '[]', 'utf-8');
+      return [];
+    }
+    throw err;
+  }
+}
+
+async function writeLicenseTemplates(templates) {
+  await fs.writeFile(appPaths.licenseTemplatesPath(), JSON.stringify(templates, null, 2), 'utf-8');
+}
+
 function parseAlarmaTime(body) {
   const hora = Number(body.hora);
   const minuto = Number(body.minuto);
@@ -445,12 +463,82 @@ function createApp() {
     }
   });
 
+  app.get('/api/license-gen/token-license', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const token = String(req.query.token || '').trim();
+      if (!token) {
+        return res.status(400).json({ error: 'Indique el token' });
+      }
+      const { conexion } = await resolveHostingConexion();
+      const data = await hostingDb.getTokenLicencia(conexion, token);
+      res.json(data);
+    } catch (err) {
+      res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  });
+
   app.get('/api/license-gen/public-key', (_req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     try {
       res.type('text/plain').send(licenseGenerator.getPublicKeyPem());
     } catch (err) {
       res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/license-gen/templates', async (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const templates = await readLicenseTemplates();
+      res.json(templates);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/license-gen/templates', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const name = String(req.body?.name || '').trim();
+      if (!name) return res.status(400).json({ error: 'Indique el nombre de la plantilla' });
+      const menus = Array.isArray(req.body?.menus)
+        ? [...new Set(req.body.menus.map((m) => String(m || '').trim()).filter(Boolean))]
+        : [];
+      if (!menus.length) {
+        return res.status(400).json({ error: 'Seleccione al menos una vista para guardar la plantilla' });
+      }
+      const templates = await readLicenseTemplates();
+      const existingIdx = templates.findIndex(
+        (t) => String(t.name || '').trim().toLowerCase() === name.toLowerCase()
+      );
+      const row = {
+        id: existingIdx >= 0 ? templates[existingIdx].id : generateId(templates),
+        name,
+        menus,
+        updatedAt: new Date().toISOString(),
+      };
+      if (existingIdx >= 0) templates[existingIdx] = { ...templates[existingIdx], ...row };
+      else templates.push(row);
+      await writeLicenseTemplates(templates);
+      res.json(row);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/license-gen/templates/:id', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const templates = await readLicenseTemplates();
+      const next = templates.filter((t) => String(t.id) !== String(req.params.id));
+      if (next.length === templates.length) {
+        return res.status(404).json({ error: 'Plantilla no encontrada' });
+      }
+      await writeLicenseTemplates(next);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
   });
 
@@ -1069,6 +1157,30 @@ function createApp() {
     }
   });
 
+  app.post('/api/render/cuentas/:id/sync-webapps', async (req, res) => {
+    try {
+      const { conexion } = await resolveHostingConexion();
+      const idRender = parseInt(req.params.id, 10);
+      if (!Number.isFinite(idRender)) {
+        return res.status(400).json({ error: 'ID de cuenta inválido' });
+      }
+      const cuenta = await hostingDb.getRenderCuenta(conexion, idRender);
+      if (!cuenta.APIKEY) {
+        return res.status(400).json({ error: 'La cuenta no tiene APIKEY configurada' });
+      }
+      const services = await renderApi.listServices(cuenta.APIKEY);
+      const webapps = renderApi.listWebApps(services);
+      const rows = await hostingDb.replaceRenderAppsForCuenta(conexion, idRender, webapps);
+      res.json({
+        ok: true,
+        loaded: rows.length,
+        rows,
+      });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
   app.post('/api/render/apps', async (req, res) => {
     try {
       const { conexion } = await resolveHostingConexion();
@@ -1092,8 +1204,28 @@ function createApp() {
   app.delete('/api/render/apps/:id', async (req, res) => {
     try {
       const { conexion } = await resolveHostingConexion();
-      await hostingDb.deleteRenderApp(conexion, parseInt(req.params.id, 10));
-      res.json({ ok: true });
+      const id = parseInt(req.params.id, 10);
+      if (!Number.isFinite(id)) {
+        return res.status(400).json({ error: 'ID de app inválido' });
+      }
+      const appRow = await hostingDb.getRenderApp(conexion, id);
+      const cuenta = await hostingDb.getRenderCuenta(conexion, appRow.IDRENDER);
+      const serviceId = String(appRow.SERVICEID || '').trim();
+      if (!serviceId) {
+        return res.status(400).json({
+          error: 'La app no tiene SERVICEID. Cargue las webapps desde Render antes de eliminar en la nube.',
+        });
+      }
+      if (!cuenta.APIKEY) {
+        return res.status(400).json({ error: 'La cuenta no tiene APIKEY configurada' });
+      }
+      await renderApi.deleteService(cuenta.APIKEY, serviceId).catch((err) => {
+        const msg = String(err?.message || '');
+        // Si ya no existe en Render, igual limpiamos la fila local.
+        if (!/\b404\b|\b410\b|not found|gone/i.test(msg)) throw err;
+      });
+      await hostingDb.deleteRenderApp(conexion, id);
+      res.json({ ok: true, deletedFromRender: true, serviceId });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

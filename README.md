@@ -30,7 +30,7 @@ Abre el navegador en [http://localhost:9006](http://localhost:9006).
 |----------|-------------|---------|
 | `PORT` | Puerto del servidor | `9006` |
 | `DATA_DIR` | Carpeta de datos JSON / auth | raíz del proyecto |
-| `ONNEB_ROOT` | Ruta al proyecto OnneB (`pos_onneb`) para el generador de licencias | carpeta hermana `../pos_onneb` |
+| `ONNEB_ROOT` | Ruta al proyecto OnneB (`OnneB-ERP`) para el generador de licencias | carpeta hermana `../OnneB-ERP` (también acepta `pos_onneb`) |
 
 ## Generador de licencias OnneB
 

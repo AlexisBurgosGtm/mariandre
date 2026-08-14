@@ -9,7 +9,7 @@
 const RENDER_API_BASE = 'https://api.render.com/v1';
 const FREE_INSTANCE_HOURS_LIMIT = 750;
 
-async function renderFetch(apiToken, path, query = {}) {
+async function renderFetch(apiToken, path, query = {}, options = {}) {
   const token = String(apiToken || '').trim();
   if (!token) throw new Error('APIKEY de Render no configurada');
 
@@ -23,7 +23,9 @@ async function renderFetch(apiToken, path, query = {}) {
     }
   }
 
+  const method = String(options.method || 'GET').toUpperCase();
   const response = await fetch(url, {
+    method,
     headers: {
       Accept: 'application/json',
       Authorization: `Bearer ${token}`,
@@ -357,10 +359,32 @@ async function getAccountUsageHours(apiToken, { ownerId } = {}) {
   };
 }
 
+async function deleteService(apiToken, serviceId) {
+  const id = String(serviceId || '').trim();
+  if (!id) throw new Error('SERVICEID de Render requerido');
+  await renderFetch(apiToken, `/services/${encodeURIComponent(id)}`, {}, { method: 'DELETE' });
+  return { ok: true };
+}
+
+/** Solo web services (webapps) con URL y id. */
+function listWebApps(services = []) {
+  return (services || [])
+    .filter((s) => s && s.type === 'web_service' && s.id)
+    .map((s) => ({
+      serviceId: String(s.id),
+      name: s.name || '',
+      url: getServiceUrl(s) || '',
+      plan: getServicePlan(s),
+      suspended: s.suspended,
+    }));
+}
+
 module.exports = {
   FREE_INSTANCE_HOURS_LIMIT,
   listOwners,
   listServices,
+  listWebApps,
+  deleteService,
   getAccountUsageHours,
   getServicePlan,
   getServiceUrl,

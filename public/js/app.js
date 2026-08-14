@@ -4,7 +4,7 @@ import { renderConexiones, openNewConexionModal, cleanupConexionesPage } from '.
 import { renderMantenimiento, openNewComandoModal } from './pages/mantenimiento.js';
 import { renderWhatsapp, cleanupWhatsappPage } from './pages/whatsapp.js';
 import { renderServiciosOnline, openNewServicioModal, cleanupServiciosOnlinePage } from './pages/servicios-online.js';
-import { renderRenderApps, openNewRenderCuentaModal, openNewRenderAppModal } from './pages/render-apps.js';
+import { renderRenderApps, openNewRenderCuentaModal } from './pages/render-apps.js';
 import { renderSoporteClientes, openNewSoporteModal } from './pages/soporte-clientes.js';
 import { renderUpdater, openNewUpdaterModal } from './pages/updater.js';
 import { renderTokens, openNewTokenModal, openNewCommunityModal } from './pages/tokens.js';
@@ -56,19 +56,28 @@ function hashForRoute(path) {
 function setSidebarOpen(open) {
   const sidebar = document.getElementById('sidebar');
   const backdrop = document.getElementById('sidebar-backdrop');
+  const fab = document.getElementById('btn-open-sidebar');
   if (!sidebar || !backdrop) return;
 
   if (open) {
     sidebar.classList.remove('-translate-x-full');
     sidebar.classList.add('translate-x-0');
+    sidebar.setAttribute('aria-hidden', 'false');
     backdrop.classList.remove('hidden');
+    backdrop.setAttribute('aria-hidden', 'false');
+    fab?.classList.add('is-hidden');
+    fab?.setAttribute('aria-expanded', 'true');
   } else {
     sidebar.classList.add('-translate-x-full');
     sidebar.classList.remove('translate-x-0');
+    sidebar.setAttribute('aria-hidden', 'true');
     backdrop.classList.add('hidden');
+    backdrop.setAttribute('aria-hidden', 'true');
+    fab?.classList.remove('is-hidden');
+    fab?.setAttribute('aria-expanded', 'false');
   }
 
-  document.body.classList.toggle('overflow-hidden', open && window.matchMedia('(max-width: 1023px)').matches);
+  document.body.classList.toggle('overflow-hidden', open);
 }
 
 function closeSidebar() {
@@ -109,7 +118,7 @@ function renderTopbarActions(routePath = currentRoute) {
   if (routePath === '/conexiones') extra = actionBtn('btn-add-conexion', 'Nueva conexión');
   else if (routePath === '/servicios-online') extra = actionBtn('btn-add-servicio', 'Nuevo servicio');
   else if (routePath === '/render-apps') {
-    extra = `${actionBtn('btn-add-render-cuenta', 'Nueva cuenta')} ${actionBtn('btn-add-render-app-top', 'Nueva app', 'fa-cube', 'ghost')}`;
+    extra = actionBtn('btn-add-render-cuenta', 'Nueva cuenta');
   }
   else if (routePath === '/soporte-clientes') extra = actionBtn('btn-add-soporte', 'Nuevo registro');
   else if (routePath === '/updater') extra = actionBtn('btn-add-updater', 'Nueva query');
@@ -124,7 +133,6 @@ function renderTopbarActions(routePath = currentRoute) {
   else if (routePath === '/servicios-online') document.getElementById('btn-add-servicio')?.addEventListener('click', openNewServicioModal);
   else if (routePath === '/render-apps') {
     document.getElementById('btn-add-render-cuenta')?.addEventListener('click', openNewRenderCuentaModal);
-    document.getElementById('btn-add-render-app-top')?.addEventListener('click', openNewRenderAppModal);
   }
   else if (routePath === '/soporte-clientes') document.getElementById('btn-add-soporte')?.addEventListener('click', openNewSoporteModal);
   else if (routePath === '/updater') document.getElementById('btn-add-updater')?.addEventListener('click', openNewUpdaterModal);
@@ -252,8 +260,8 @@ window.addEventListener('hashchange', () => {
 document.getElementById('btn-open-sidebar')?.addEventListener('click', () => setSidebarOpen(true));
 document.getElementById('btn-close-sidebar')?.addEventListener('click', closeSidebar);
 document.getElementById('sidebar-backdrop')?.addEventListener('click', closeSidebar);
-window.addEventListener('resize', () => {
-  if (window.matchMedia('(min-width: 1024px)').matches) closeSidebar();
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeSidebar();
 });
 
 document.documentElement.removeAttribute('data-theme');

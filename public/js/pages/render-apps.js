@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { showToast, confirmDialog, openModal, showLoader, showTableLoader, renderLoader } from '../utils.js';
+import { showToast, confirmDialog, confirmTypedWord, openModal, showLoader, showTableLoader, renderLoader } from '../utils.js';
 import { tw, cx } from '../ui.js';
 
 let pageState = {
@@ -111,41 +111,6 @@ function getCuentaFormHtml(record) {
   `;
 }
 
-function getAppFormHtml(record, idRender) {
-  const data = record || { IDRENDER: idRender };
-  const isEdit = Boolean(data.IDSERVICIO);
-
-  return `
-    ${!isEdit ? `
-      <div class="mb-4 flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-        <i class="fa-solid fa-cloud"></i>
-        Cuenta IDRENDER: <strong>${escapeHtml(idRender)}</strong>
-      </div>
-    ` : ''}
-    <form id="render-app-form" novalidate>
-      <div class="${tw.formGrid}">
-        ${isEdit ? `
-          <div class="${tw.formGroup}">
-            <label class="${tw.label}" for="app-id">IDSERVICIO</label>
-            <input class="${tw.input}" type="text" id="app-id" value="${escapeHtml(data.IDSERVICIO)}" readonly>
-          </div>
-        ` : ''}
-        <div class="${tw.formGroupFull}">
-          <label class="${tw.label}" for="app-url">URL</label>
-          <input class="${tw.input}" type="text" id="app-url" value="${escapeHtml(data.URL || '')}" required>
-        </div>
-        <div class="${tw.formGroup}">
-          <label class="${tw.label}" for="app-usage">USAGE</label>
-          <input class="${tw.input}" type="number" step="any" id="app-usage" value="${escapeHtml(data.USAGE ?? 0)}">
-        </div>
-      </div>
-      <div class="${tw.formActions}">
-        <button type="submit" class="${tw.btnPrimary}"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
-      </div>
-    </form>
-  `;
-}
-
 function openCuentaModal(record, reload) {
   const isEdit = Boolean(record?.IDRENDER);
   openModal(isEdit ? 'Editar cuenta Render' : 'Nueva cuenta Render', getCuentaFormHtml(record), (_root, close) => {
@@ -163,28 +128,6 @@ function openCuentaModal(record, reload) {
       } else {
         await api.createRenderCuenta(payload);
         showToast('Cuenta creada', 'success');
-      }
-    }, reload);
-  });
-}
-
-function openAppModal(record, idRender, reload) {
-  const isEdit = Boolean(record?.IDSERVICIO);
-  openModal(isEdit ? 'Editar app Render' : 'Nueva app Render', getAppFormHtml(record, idRender), (_root, close) => {
-    const form = document.getElementById('render-app-form');
-    bindForm(form, close, async () => {
-      const payload = {
-        IDRENDER: idRender,
-        URL: form.querySelector('#app-url').value.trim(),
-        USAGE: form.querySelector('#app-usage').value.trim(),
-      };
-      if (!payload.URL) throw new Error('URL es obligatoria');
-      if (isEdit) {
-        await api.updateRenderApp(record.IDSERVICIO, payload);
-        showToast('App actualizada', 'success');
-      } else {
-        await api.createRenderApp(payload);
-        showToast('App creada', 'success');
       }
     }, reload);
   });
@@ -220,6 +163,7 @@ function renderCuentasTable(rows, selectedId) {
             <td class="${tdCls}"><code class="break-all font-mono text-[10px] text-slate-700">${escapeHtml(c.PASS || '—')}</code></td>
             <td class="${tdCls}">${renderApiKeyBadge(c.APIKEY)}</td>
             <td class="${cx(tdCls, tw.tableActions)}">
+              <button type="button" class="${cx(tw.btnGhost, 'px-2 py-1 text-[10px]')} btn-load-webapps" data-id="${escapeHtml(c.IDRENDER)}" title="Cargar webapps desde Render"><i class="fa-solid fa-cloud-arrow-down"></i> Cargar webapps</button>
               <button type="button" class="${cx(tw.btnGhost, 'px-2 py-1 text-[10px]')} btn-usage-cuenta" data-id="${escapeHtml(c.IDRENDER)}" title="Consultar uso de horas"><i class="fa-solid fa-clock"></i></button>
               <button type="button" class="${cx(tw.btnGhost, 'px-2 py-1 text-[10px]')} btn-edit-cuenta" data-id="${escapeHtml(c.IDRENDER)}" title="Editar"><i class="fa-solid fa-pen"></i></button>
               <button type="button" class="${cx(tw.btnDanger, 'px-2 py-1 text-[10px]')} btn-delete-cuenta" data-id="${escapeHtml(c.IDRENDER)}" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
@@ -244,6 +188,7 @@ function renderAppsTable(rows) {
       <thead>
         <tr>
           <th class="${thCls}">URL</th>
+          <th class="${thCls}">Service ID</th>
           <th class="${thCls}">Usage</th>
           <th class="${thCls}"></th>
         </tr>
@@ -252,10 +197,10 @@ function renderAppsTable(rows) {
         ${rows.map((r) => `
           <tr>
             <td class="${tdCls}"><span class="block max-w-[16rem] truncate">${renderAppUrlLink(r.URL, 'block truncate')}</span></td>
+            <td class="${tdCls}"><code class="break-all font-mono text-[10px] text-slate-700">${escapeHtml(r.SERVICEID || '—')}</code></td>
             <td class="${tdCls} tabular-nums">${escapeHtml(r.USAGE ?? 0)}</td>
             <td class="${cx(tdCls, tw.tableActions)}">
-              <button type="button" class="${cx(tw.btnGhost, 'px-2 py-1 text-[10px]')} btn-edit-app" data-id="${escapeHtml(r.IDSERVICIO)}" title="Editar"><i class="fa-solid fa-pen"></i></button>
-              <button type="button" class="${cx(tw.btnDanger, 'px-2 py-1 text-[10px]')} btn-delete-app" data-id="${escapeHtml(r.IDSERVICIO)}" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+              <button type="button" class="${cx(tw.btnDanger, 'px-2 py-1 text-[10px]')} btn-delete-app" data-id="${escapeHtml(r.IDSERVICIO)}" title="Eliminar en Render y en la base"><i class="fa-solid fa-trash"></i></button>
             </td>
           </tr>
         `).join('')}
@@ -340,8 +285,6 @@ function updateAppsPanelHeader(container) {
       ? `RENDER_APPS — ${cuenta.EMAIL || `ID ${cuenta.IDRENDER}`}`
       : 'RENDER_APPS';
   }
-  const addBtn = container.querySelector('#btn-add-app');
-  if (addBtn) addBtn.disabled = !pageState.selectedIdRender;
 }
 
 async function loadApps(container) {
@@ -469,30 +412,67 @@ async function consultUsage(idRender, button) {
 }
 
 function bindAppEvents(container) {
-  container.querySelectorAll('.btn-edit-app').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const record = pageState.apps.find((r) => String(r.IDSERVICIO) === String(btn.dataset.id));
-      if (record) openAppModal(record, pageState.selectedIdRender, () => refreshPage(container));
-    });
-  });
-
   container.querySelectorAll('.btn-delete-app').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      const confirmed = await confirmDialog({
-        title: 'Eliminar app',
-        text: '¿Eliminar este registro de RENDER_APPS?',
-        confirmText: 'Sí, eliminar',
+      const record = pageState.apps.find((r) => String(r.IDSERVICIO) === String(btn.dataset.id));
+      const label = record?.URL || record?.SERVICEID || btn.dataset.id;
+      const first = await confirmDialog({
+        title: 'Eliminar webapp',
+        text: `Se eliminará "${label}" de la base de datos y también del servicio en Render.com. Esta acción no se puede deshacer.`,
+        confirmText: 'Continuar',
       });
-      if (!confirmed) return;
+      if (!first) return;
+
+      const typed = await confirmTypedWord({
+        title: 'Escriba CONFIRMAR',
+        text: 'Para eliminar la webapp en Render y en Mariandre, escriba CONFIRMAR.',
+        word: 'CONFIRMAR',
+        confirmText: 'Eliminar definitivamente',
+      });
+      if (!typed) return;
+
       try {
+        btn.disabled = true;
         await api.deleteRenderApp(btn.dataset.id);
-        showToast('App eliminada', 'success');
+        showToast('Webapp eliminada en Render y en la base', 'success');
         await refreshPage(container);
       } catch (err) {
         showToast(err.message, 'error');
+        btn.disabled = false;
       }
     });
   });
+}
+
+async function loadWebappsForCuenta(idRender, button, container) {
+  if (button?.disabled) return;
+
+  const confirmed = await confirmDialog({
+    title: 'Cargar webapps',
+    text: 'Se eliminarán las apps registradas de esta cuenta y se reemplazarán con las webapps actuales de Render.com (URL + Service ID).',
+    confirmText: 'Sí, cargar',
+  });
+  if (!confirmed) return;
+
+  const originalHtml = button?.innerHTML;
+  if (button) {
+    button.disabled = true;
+    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cargando...';
+  }
+
+  try {
+    const result = await api.syncRenderWebapps(idRender);
+    pageState.selectedIdRender = String(idRender);
+    showToast(`${result.loaded ?? 0} webapp(s) cargada(s)`, 'success');
+    await refreshPage(container);
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.innerHTML = originalHtml || '<i class="fa-solid fa-cloud-arrow-down"></i> Cargar webapps';
+    }
+  }
 }
 
 function bindCuentaEvents(container) {
@@ -505,6 +485,13 @@ function bindCuentaEvents(container) {
       });
       updateAppsPanelHeader(container);
       await loadApps(container);
+    });
+  });
+
+  container.querySelectorAll('.btn-load-webapps').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      loadWebappsForCuenta(btn.dataset.id, btn, container);
     });
   });
 
@@ -588,14 +575,6 @@ export async function openNewRenderCuentaModal() {
   }
 }
 
-export function openNewRenderAppModal() {
-  if (!pageState.selectedIdRender) {
-    showToast('Selecciona una cuenta primero', 'error');
-    return;
-  }
-  openAppModal(null, pageState.selectedIdRender, () => window.__reloadRenderApps?.());
-}
-
 export async function renderRenderApps(container) {
   showLoader(container, 'Cargando Render Apps...');
 
@@ -657,12 +636,7 @@ export async function renderRenderApps(container) {
         <section class="${cx(panelCls, 'xl:col-span-4')}">
           <div class="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2">
             <h3 id="apps-panel-title" class="min-w-0 truncate text-sm font-semibold text-slate-800">RENDER_APPS${selected ? ` — ${escapeHtml(selected.EMAIL || selected.IDRENDER)}` : ''}</h3>
-            <div class="flex flex-wrap items-center gap-1.5">
-              <input type="search" id="app-search" class="${searchInput}" placeholder="Buscar URL..." value="${escapeHtml(pageState.appSearch)}">
-              <button type="button" class="${cx(tw.btnPrimary, 'px-2.5 py-1 text-[11px]')}" id="btn-add-app" ${pageState.selectedIdRender ? '' : 'disabled'}>
-                <i class="fa-solid fa-plus"></i> Nuevo
-              </button>
-            </div>
+            <input type="search" id="app-search" class="${searchInput}" placeholder="Buscar URL..." value="${escapeHtml(pageState.appSearch)}">
           </div>
           <div id="apps-table-wrap" class="min-h-0 flex-1 overflow-auto">${pageState.selectedIdRender ? renderLoader('Cargando apps...', { compact: true }) : renderAppsTable([])}</div>
         </section>
@@ -696,10 +670,6 @@ export async function renderRenderApps(container) {
   container.querySelector('#app-search')?.addEventListener('input', async (e) => {
     pageState.appSearch = e.target.value;
     await loadApps(container);
-  });
-
-  container.querySelector('#btn-add-app')?.addEventListener('click', () => {
-    openAppModal(null, pageState.selectedIdRender, () => refreshPage(container));
   });
 
   if (pageState.selectedIdRender) {

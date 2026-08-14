@@ -48,6 +48,38 @@ export async function confirmDialog({
   return result.isConfirmed;
 }
 
+/** Segunda confirmación: el usuario debe escribir exactamente `word` (p. ej. CONFIRMAR). */
+export async function confirmTypedWord({
+  title = 'Confirmación requerida',
+  text = 'Escriba CONFIRMAR para continuar.',
+  word = 'CONFIRMAR',
+  confirmText = 'Eliminar',
+  cancelText = 'Cancelar',
+  icon = 'warning',
+} = {}) {
+  const expected = String(word || 'CONFIRMAR').trim();
+  const result = await Swal.fire({
+    ...SWAL_BASE,
+    title,
+    html: `<p class="ma-swal-text">${text}</p><p class="mt-2 text-xs text-slate-500">Escriba <strong>${expected}</strong> para proceder.</p>`,
+    icon,
+    input: 'text',
+    inputPlaceholder: expected,
+    inputAttributes: { autocomplete: 'off', autocapitalize: 'characters' },
+    showCancelButton: true,
+    confirmButtonText: confirmText,
+    cancelButtonText: cancelText,
+    preConfirm: (value) => {
+      if (String(value || '').trim() !== expected) {
+        Swal.showValidationMessage(`Debe escribir exactamente ${expected}`);
+        return false;
+      }
+      return true;
+    },
+  });
+  return result.isConfirmed;
+}
+
 let loaderSeq = 0;
 
 function startLoaderProgress(id) {

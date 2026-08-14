@@ -11,12 +11,17 @@ function resolveOnnebRoot() {
   if (process.env.ONNEB_ROOT) {
     return path.resolve(process.env.ONNEB_ROOT);
   }
-  const candidates = [
-    path.join(appPaths.getBundleDir(), '..', 'pos_onneb'),
-    path.join(__dirname, '..', '..', 'pos_onneb'),
-    path.join(__dirname, '..', '..', 'OnneB'),
-    path.join(__dirname, '..', '..', 'onneb'),
+  const siblings = ['OnneB-ERP', 'pos_onneb', 'OnneB', 'onneb'];
+  const bases = [
+    path.join(appPaths.getBundleDir(), '..'),
+    path.join(__dirname, '..', '..'),
   ];
+  const candidates = [];
+  for (const base of bases) {
+    for (const name of siblings) {
+      candidates.push(path.join(base, name));
+    }
+  }
   for (const candidate of candidates) {
     const modulesPath = path.join(candidate, 'lib', 'license-modules.js');
     if (fs.existsSync(modulesPath)) return path.resolve(candidate);
@@ -92,7 +97,7 @@ function getGeneratorContext() {
   const onnebRoot = resolveOnnebRoot();
   if (!onnebRoot) {
     const err = new Error(
-      'No se encontró el proyecto OnneB (pos_onneb). Defina ONNEB_ROOT o colóquelo junto a Mariandre.'
+      'No se encontró el proyecto OnneB (OnneB-ERP). Defina ONNEB_ROOT o colóquelo junto a Mariandre.'
     );
     err.statusCode = 503;
     throw err;

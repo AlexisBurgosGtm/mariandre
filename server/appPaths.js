@@ -49,6 +49,10 @@ function alarmasPath() {
   return path.join(getDataDir(), 'alarmas.json');
 }
 
+function licenseTemplatesPath() {
+  return path.join(getDataDir(), 'license-templates.json');
+}
+
 function whatsappAuthPath() {
   return path.join(getDataDir(), '.baileys_auth');
 }
@@ -120,6 +124,12 @@ async function ensureDataFiles() {
     '[]'
   );
 
+  await copyIfMissing(
+    path.join(getBundleDir(), 'license-templates.json'),
+    licenseTemplatesPath(),
+    '[]'
+  );
+
   await fs.mkdir(whatsappAuthPath(), { recursive: true });
 }
 
@@ -140,6 +150,7 @@ module.exports = {
   configPath,
   serviciosOnlinePath,
   alarmasPath,
+  licenseTemplatesPath,
   whatsappAuthPath,
   resolveModule,
   resolveModulePath,

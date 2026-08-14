@@ -47,6 +47,7 @@ export const api = {
   updateRenderCuenta: (id, data) => request(`/render/cuentas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteRenderCuenta: (id) => request(`/render/cuentas/${id}`, { method: 'DELETE' }),
   getRenderCuentaUsage: (id) => request(`/render/cuentas/${id}/usage`),
+  syncRenderWebapps: (id) => request(`/render/cuentas/${id}/sync-webapps`, { method: 'POST' }),
   getRenderApps: (idRender, search = '') => {
     const params = new URLSearchParams({ idRender, search });
     return request(`/render/apps?${params}`);
@@ -55,8 +56,6 @@ export const api = {
     const params = new URLSearchParams({ search });
     return request(`/render/apps/search?${params}`);
   },
-  createRenderApp: (data) => request('/render/apps', { method: 'POST', body: JSON.stringify(data) }),
-  updateRenderApp: (id, data) => request(`/render/apps/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteRenderApp: (id) => request(`/render/apps/${id}`, { method: 'DELETE' }),
   getConexiones: () => request('/conexiones'),
   getConexion: (id) => request(`/conexiones/${id}`),
@@ -91,5 +90,12 @@ export const api = {
   issueLicense: (data) => request('/license-gen/issue', { method: 'POST', body: JSON.stringify(data) }),
   issueAndUploadLicense: (data) =>
     request('/license-gen/issue-and-upload', { method: 'POST', body: JSON.stringify(data) }),
+  getTokenLicense: (token) =>
+    request(`/license-gen/token-license?token=${encodeURIComponent(token)}`),
   getLicenseGenPublicKey: () => fetch('/api/license-gen/public-key').then((r) => r.text()),
+  getLicenseTemplates: () => request('/license-gen/templates'),
+  saveLicenseTemplate: (data) =>
+    request('/license-gen/templates', { method: 'POST', body: JSON.stringify(data) }),
+  deleteLicenseTemplate: (id) =>
+    request(`/license-gen/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };
