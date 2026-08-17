@@ -50,6 +50,8 @@ async function withHostingConnection(conexion, fn) {
   throw new Error(`Tipo de base de datos no soportado: ${conexion.tipo}`);
 }
 
+const SOPORTE_COLUMNS = 'ID, TOKEN, SUCURSAL, TIPO, ANYDESK, PASS, VENDEDOR, LASTUPDATE';
+
 async function ensureSoporteTable(conexion) {
   return withHostingConnection(conexion, async (db, tipo) => {
     if (tipo === 'mssql') {
@@ -64,9 +66,23 @@ async function ensureSoporteTable(conexion) {
             SUCURSAL VARCHAR(200) NULL,
             TIPO VARCHAR(100) NULL,
             ANYDESK VARCHAR(200) NULL,
-            PASS VARCHAR(200) NULL
+            PASS VARCHAR(200) NULL,
+            VENDEDOR VARCHAR(200) NULL,
+            LASTUPDATE DATE NULL
           )
         END
+
+        IF NOT EXISTS (
+          SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_NAME = 'SOPORTE_ANYDESK' AND COLUMN_NAME = 'VENDEDOR'
+        )
+          ALTER TABLE SOPORTE_ANYDESK ADD VENDEDOR VARCHAR(200) NULL;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_NAME = 'SOPORTE_ANYDESK' AND COLUMN_NAME = 'LASTUPDATE'
+        )
+          ALTER TABLE SOPORTE_ANYDESK ADD LASTUPDATE DATE NULL;
       `);
       return;
     }
@@ -78,9 +94,23 @@ async function ensureSoporteTable(conexion) {
         SUCURSAL VARCHAR(200) NULL,
         TIPO VARCHAR(100) NULL,
         ANYDESK VARCHAR(200) NULL,
-        PASS VARCHAR(200) NULL
+        PASS VARCHAR(200) NULL,
+        VENDEDOR VARCHAR(200) NULL,
+        LASTUPDATE DATE NULL
       )
     `);
+
+    const [cols] = await db.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'SOPORTE_ANYDESK'`
+    );
+    const names = new Set((cols || []).map((c) => String(c.COLUMN_NAME || '').toUpperCase()));
+    if (!names.has('VENDEDOR')) {
+      await db.query('ALTER TABLE SOPORTE_ANYDESK ADD COLUMN VENDEDOR VARCHAR(200) NULL');
+    }
+    if (!names.has('LASTUPDATE')) {
+      await db.query('ALTER TABLE SOPORTE_ANYDESK ADD COLUMN LASTUPDATE DATE NULL');
+    }
   });
 }
 
@@ -99,7 +129,7 @@ function normalizeRow(row) {
 async function listSoporteAnydesk(conexion) {
   await ensureSoporteTable(conexion);
   return withHostingConnection(conexion, async (db, tipo) => {
-    const query = 'SELECT ID, TOKEN, SUCURSAL, TIPO, ANYDESK, PASS FROM SOPORTE_ANYDESK ORDER BY ID DESC';
+    const query = `SELECT ${SOPORTE_COLUMNS} FROM SOPORTE_ANYDESK ORDER BY ID DESC`;
     if (tipo === 'mssql') {
       const result = await db.request().query(query);
       return (result.recordset || []).map(normalizeRow);
@@ -131,20 +161,22 @@ async function createSoporteAnydesk(conexion, data) {
         .input('tipo', sql.VarChar(100), data.TIPO || '')
         .input('anydesk', sql.VarChar(200), data.ANYDESK || '')
         .input('pass', sql.VarChar(200), data.PASS || '')
+        .input('vendedor', sql.VarChar(200), data.VENDEDOR || '')
         .query(`
-          INSERT INTO SOPORTE_ANYDESK (TOKEN, SUCURSAL, TIPO, ANYDESK, PASS)
-          OUTPUT INSERTED.ID, INSERTED.TOKEN, INSERTED.SUCURSAL, INSERTED.TIPO, INSERTED.ANYDESK, INSERTED.PASS
-          VALUES (@token, @sucursal, @tipo, @anydesk, @pass)
+          INSERT INTO SOPORTE_ANYDESK (TOKEN, SUCURSAL, TIPO, ANYDESK, PASS, VENDEDOR, LASTUPDATE)
+          OUTPUT INSERTED.ID, INSERTED.TOKEN, INSERTED.SUCURSAL, INSERTED.TIPO, INSERTED.ANYDESK, INSERTED.PASS, INSERTED.VENDEDOR, INSERTED.LASTUPDATE
+          VALUES (@token, @sucursal, @tipo, @anydesk, @pass, @vendedor, CAST(GETDATE() AS DATE))
         `);
       return normalizeRow(result.recordset[0]);
     }
 
     const [result] = await db.query(
-      'INSERT INTO SOPORTE_ANYDESK (TOKEN, SUCURSAL, TIPO, ANYDESK, PASS) VALUES (?, ?, ?, ?, ?)',
-      [data.TOKEN || '', data.SUCURSAL || '', data.TIPO || '', data.ANYDESK || '', data.PASS || '']
+      `INSERT INTO SOPORTE_ANYDESK (TOKEN, SUCURSAL, TIPO, ANYDESK, PASS, VENDEDOR, LASTUPDATE)
+       VALUES (?, ?, ?, ?, ?, ?, CURDATE())`,
+      [data.TOKEN || '', data.SUCURSAL || '', data.TIPO || '', data.ANYDESK || '', data.PASS || '', data.VENDEDOR || '']
     );
     const [rows] = await db.query(
-      'SELECT ID, TOKEN, SUCURSAL, TIPO, ANYDESK, PASS FROM SOPORTE_ANYDESK WHERE ID = ?',
+      `SELECT ${SOPORTE_COLUMNS} FROM SOPORTE_ANYDESK WHERE ID = ?`,
       [result.insertId]
     );
     return normalizeRow(rows[0]);
@@ -152,6 +184,7 @@ async function createSoporteAnydesk(conexion, data) {
 }
 
 async function updateSoporteAnydesk(conexion, id, data) {
+  await ensureSoporteTable(conexion);
   return withHostingConnection(conexion, async (db, tipo) => {
     if (tipo === 'mssql') {
       const result = await db.request()
@@ -161,10 +194,12 @@ async function updateSoporteAnydesk(conexion, id, data) {
         .input('tipo', sql.VarChar(100), data.TIPO || '')
         .input('anydesk', sql.VarChar(200), data.ANYDESK || '')
         .input('pass', sql.VarChar(200), data.PASS || '')
+        .input('vendedor', sql.VarChar(200), data.VENDEDOR || '')
         .query(`
           UPDATE SOPORTE_ANYDESK
-          SET TOKEN = @token, SUCURSAL = @sucursal, TIPO = @tipo, ANYDESK = @anydesk, PASS = @pass
-          OUTPUT INSERTED.ID, INSERTED.TOKEN, INSERTED.SUCURSAL, INSERTED.TIPO, INSERTED.ANYDESK, INSERTED.PASS
+          SET TOKEN = @token, SUCURSAL = @sucursal, TIPO = @tipo, ANYDESK = @anydesk, PASS = @pass,
+              VENDEDOR = @vendedor, LASTUPDATE = CAST(GETDATE() AS DATE)
+          OUTPUT INSERTED.ID, INSERTED.TOKEN, INSERTED.SUCURSAL, INSERTED.TIPO, INSERTED.ANYDESK, INSERTED.PASS, INSERTED.VENDEDOR, INSERTED.LASTUPDATE
           WHERE ID = @id
         `);
       if (!result.recordset.length) throw new Error('Registro no encontrado');
@@ -172,12 +207,14 @@ async function updateSoporteAnydesk(conexion, id, data) {
     }
 
     const [result] = await db.query(
-      'UPDATE SOPORTE_ANYDESK SET TOKEN=?, SUCURSAL=?, TIPO=?, ANYDESK=?, PASS=? WHERE ID=?',
-      [data.TOKEN || '', data.SUCURSAL || '', data.TIPO || '', data.ANYDESK || '', data.PASS || '', id]
+      `UPDATE SOPORTE_ANYDESK
+       SET TOKEN=?, SUCURSAL=?, TIPO=?, ANYDESK=?, PASS=?, VENDEDOR=?, LASTUPDATE=CURDATE()
+       WHERE ID=?`,
+      [data.TOKEN || '', data.SUCURSAL || '', data.TIPO || '', data.ANYDESK || '', data.PASS || '', data.VENDEDOR || '', id]
     );
     if (!result.affectedRows) throw new Error('Registro no encontrado');
     const [rows] = await db.query(
-      'SELECT ID, TOKEN, SUCURSAL, TIPO, ANYDESK, PASS FROM SOPORTE_ANYDESK WHERE ID = ?',
+      `SELECT ${SOPORTE_COLUMNS} FROM SOPORTE_ANYDESK WHERE ID = ?`,
       [id]
     );
     return normalizeRow(rows[0]);

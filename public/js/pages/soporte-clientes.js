@@ -46,6 +46,10 @@ function getSoporteFormHtml(record, tokens) {
           <label class="${tw.label}" for="soporte-pass">Contraseña</label>
           <input class="${tw.input}" type="text" id="soporte-pass" value="${escapeHtml(data.PASS || '')}">
         </div>
+        <div class="${tw.formGroup}">
+          <label class="${tw.label}" for="soporte-vendedor">Vendedor</label>
+          <input class="${tw.input}" type="text" id="soporte-vendedor" value="${escapeHtml(data.VENDEDOR || '')}">
+        </div>
       </div>
       <div class="${tw.formActions}">
         <button type="submit" class="${tw.btnPrimary}"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
@@ -61,6 +65,7 @@ function getSoporteFormData(form) {
     TIPO: form.querySelector('#soporte-tipo').value.trim(),
     ANYDESK: form.querySelector('#soporte-anydesk').value.trim(),
     PASS: form.querySelector('#soporte-pass').value.trim(),
+    VENDEDOR: form.querySelector('#soporte-vendedor').value.trim(),
   };
 }
 
@@ -107,7 +112,93 @@ function openSoporteModal(record, tokens, reload) {
   });
 }
 
-let soporteState = { records: [], search: '' };
+let soporteState = { records: [], search: '', tokenMap: {} };
+
+function formatLastUpdate(value) {
+  if (!value) return '';
+  const s = String(value);
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  return s;
+}
+
+function todayLocalIso() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function xmlEscape(text) {
+  return String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function downloadBlob(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export function exportSoporteExcel() {
+  const tokenMap = soporteState.tokenMap || {};
+  const filtered = filterSoporteRecords(soporteState.records, soporteState.search, tokenMap);
+  if (!filtered.length) {
+    showToast('No hay filas para exportar', 'error');
+    return;
+  }
+
+  const headers = ['Empresa', 'Token', 'Sucursal', 'Tipo', 'AnyDesk', 'Pass', 'Vendedor', 'LastUpdate'];
+  const rows = filtered.map((r) => [
+    tokenMap[r.TOKEN] || '',
+    r.TOKEN || '',
+    r.SUCURSAL || '',
+    r.TIPO || '',
+    r.ANYDESK || '',
+    r.PASS || '',
+    r.VENDEDOR || '',
+    formatLastUpdate(r.LASTUPDATE),
+  ]);
+
+  const headerXml = `<Row>${headers.map((h) => `<Cell ss:StyleID="header"><Data ss:Type="String">${xmlEscape(h)}</Data></Cell>`).join('')}</Row>`;
+  const rowsXml = rows.map((row) => (
+    `<Row>${row.map((cell) => `<Cell><Data ss:Type="String">${xmlEscape(cell)}</Data></Cell>`).join('')}</Row>`
+  )).join('');
+
+  const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  <Styles>
+    <Style ss:ID="header">
+      <Font ss:Bold="1"/>
+    </Style>
+  </Styles>
+  <Worksheet ss:Name="Soporte AnyDesk">
+    <Table>
+      ${headerXml}
+      ${rowsXml}
+    </Table>
+  </Worksheet>
+</Workbook>`;
+
+  const today = todayLocalIso();
+  downloadBlob(
+    `soporte-anydesk-${today}.xls`,
+    xml,
+    'application/vnd.ms-excel'
+  );
+  showToast(`Exportadas ${filtered.length} fila(s)`, 'success');
+}
 
 function filterSoporteRecords(records, search, tokenMap) {
   const q = search.trim().toLowerCase();
@@ -120,6 +211,8 @@ function filterSoporteRecords(records, search, tokenMap) {
       r.TIPO,
       r.ANYDESK,
       r.PASS,
+      r.VENDEDOR,
+      formatLastUpdate(r.LASTUPDATE),
     ].map((v) => String(v || '').toLowerCase());
     return fields.some((f) => f.includes(q));
   });
@@ -128,7 +221,7 @@ function filterSoporteRecords(records, search, tokenMap) {
 function renderSoporteRows(records, tokenMap) {
   if (!records.length) {
     const msg = soporteState.records.length ? 'No hay registros que coincidan' : 'No hay registros en SOPORTE_ANYDESK';
-    return `<tr><td colspan="7" class="${cx(tw.td, tw.tableEmpty)}">${msg}</td></tr>`;
+    return `<tr><td colspan="9" class="${cx(tw.td, tw.tableEmpty)}">${msg}</td></tr>`;
   }
 
   return records.map((r) => `
@@ -139,6 +232,8 @@ function renderSoporteRows(records, tokenMap) {
       <td class="${tw.td}">${escapeHtml(r.TIPO || '')}</td>
       <td class="${tw.td}">${escapeHtml(r.ANYDESK || '')}</td>
       <td class="${tw.td}">${escapeHtml(r.PASS || '')}</td>
+      <td class="${tw.td}">${escapeHtml(r.VENDEDOR || '')}</td>
+      <td class="${tw.td}">${escapeHtml(formatLastUpdate(r.LASTUPDATE) || '—')}</td>
       <td class="${cx(tw.td, tw.tableActions)}">
         <button class="${cx(tw.btnGhost, tw.btnSm)} btn-edit-soporte" data-id="${escapeHtml(r.ID)}" title="Editar">
           <i class="fa-solid fa-pen"></i>
@@ -270,8 +365,9 @@ export async function renderSoporteClientes(container) {
   }
 
   window.__soporteTokens = tokens;
-  soporteState.records = records;
   const tokenMap = Object.fromEntries(tokens.map((t) => [t.TOKEN, t.EMPRESA || t.TOKEN]));
+  soporteState.records = records;
+  soporteState.tokenMap = tokenMap;
   const reload = () => window.__reloadSoporte?.();
 
   container.innerHTML = `
@@ -289,6 +385,8 @@ export async function renderSoporteClientes(container) {
             <th class="${tw.th}">Tipo</th>
             <th class="${tw.th}">AnyDesk</th>
             <th class="${tw.th}">Pass</th>
+            <th class="${tw.th}">Vendedor</th>
+            <th class="${tw.th}">LastUpdate</th>
             <th class="${tw.th}">Acciones</th>
           </tr>
         </thead>

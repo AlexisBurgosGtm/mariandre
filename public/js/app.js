@@ -1,11 +1,12 @@
 import { api } from './api.js';
+import { NAV_ITEMS, navIconClass, hashForRoute } from './nav-items.js';
 import { renderHome } from './pages/home.js';
 import { renderConexiones, openNewConexionModal, cleanupConexionesPage } from './pages/conexiones.js';
 import { renderMantenimiento, openNewComandoModal } from './pages/mantenimiento.js';
 import { renderWhatsapp, cleanupWhatsappPage } from './pages/whatsapp.js';
 import { renderServiciosOnline, openNewServicioModal, cleanupServiciosOnlinePage } from './pages/servicios-online.js';
 import { renderRenderApps, openNewRenderCuentaModal } from './pages/render-apps.js';
-import { renderSoporteClientes, openNewSoporteModal } from './pages/soporte-clientes.js';
+import { renderSoporteClientes, openNewSoporteModal, exportSoporteExcel } from './pages/soporte-clientes.js';
 import { renderUpdater, openNewUpdaterModal } from './pages/updater.js';
 import { renderTokens, openNewTokenModal, openNewCommunityModal } from './pages/tokens.js';
 import { renderConfiguraciones } from './pages/configuraciones.js';
@@ -18,21 +19,28 @@ import { initTts } from './tts.js';
 import { renderLoader } from './utils.js';
 import { tw, cx } from './ui.js';
 
-const routes = {
-  '/': { title: 'Inicio', icon: 'fa-house', render: renderHome },
-  '/generador-licencias': { title: 'Generador Licencias', icon: 'fa-certificate', render: renderGeneradorLicencias },
-  '/conexiones': { title: 'Conexiones', icon: 'fa-plug', render: renderConexiones },
-  '/servicios-online': { title: 'Servicios Online', icon: 'fa-globe', render: renderServiciosOnline },
-  '/render-apps': { title: 'Render Apps', icon: 'fa-cloud', render: renderRenderApps },
-  '/mercados-efectivos': { title: 'MERCADOS EFECTIVOS', icon: 'fa-store', render: renderMercadosEfectivos },
-  '/soporte-clientes': { title: 'Soporte Clientes', icon: 'fa-headset', render: renderSoporteClientes },
-  '/updater': { title: 'Updater', icon: 'fa-database', render: renderUpdater },
-  '/tokens': { title: 'Tokens', icon: 'fa-key', render: renderTokens },  
-  '/mantenimiento': { title: 'Mantenimiento DB', icon: 'fa-screwdriver-wrench', render: renderMantenimiento },
-  '/alarmas': { title: 'Alarmas', icon: 'fa-bell', render: renderAlarmas },
-  '/whatsapp': { title: 'Whatsapp', icon: 'fa-brands fa-whatsapp', render: renderWhatsapp },
-  '/configuraciones': { title: 'Configuraciones', icon: 'fa-gear', render: renderConfiguraciones },
+const renders = {
+  '/': renderHome,
+  '/generador-licencias': renderGeneradorLicencias,
+  '/conexiones': renderConexiones,
+  '/servicios-online': renderServiciosOnline,
+  '/render-apps': renderRenderApps,
+  '/mercados-efectivos': renderMercadosEfectivos,
+  '/soporte-clientes': renderSoporteClientes,
+  '/updater': renderUpdater,
+  '/tokens': renderTokens,
+  '/mantenimiento': renderMantenimiento,
+  '/alarmas': renderAlarmas,
+  '/whatsapp': renderWhatsapp,
+  '/configuraciones': renderConfiguraciones,
 };
+
+const routes = Object.fromEntries(
+  NAV_ITEMS.map((item) => [
+    item.path,
+    { title: item.title, icon: item.icon, render: renders[item.path] },
+  ])
+);
 
 let currentRoute = '/';
 let renderGeneration = 0;
@@ -47,10 +55,6 @@ function getRoute() {
   const hash = window.location.hash.slice(1) || '/';
   const path = hash.startsWith('/') ? hash : `/${hash}`;
   return routes[path] ? path : '/';
-}
-
-function hashForRoute(path) {
-  return path === '/' ? '#/' : `#${path}`;
 }
 
 function setSidebarOpen(open) {
@@ -92,7 +96,7 @@ function renderNav() {
       data-route="${path}"
       href="${hashForRoute(path)}"
     >
-      <i class="fa-solid ${route.icon} w-5 text-center"></i>
+      <i class="${navIconClass(route.icon)} w-5 text-center"></i>
       <span>${route.title}</span>
     </a>
   `).join('');
@@ -120,7 +124,9 @@ function renderTopbarActions(routePath = currentRoute) {
   else if (routePath === '/render-apps') {
     extra = actionBtn('btn-add-render-cuenta', 'Nueva cuenta');
   }
-  else if (routePath === '/soporte-clientes') extra = actionBtn('btn-add-soporte', 'Nuevo registro');
+  else if (routePath === '/soporte-clientes') {
+    extra = `${actionBtn('btn-export-soporte', 'Exportar Excel', 'fa-file-excel', 'ghost')} ${actionBtn('btn-add-soporte', 'Nuevo registro')}`;
+  }
   else if (routePath === '/updater') extra = actionBtn('btn-add-updater', 'Nueva query');
   else if (routePath === '/tokens') {
     extra = `${actionBtn('btn-add-token', 'Nuevo token')} ${actionBtn('btn-add-community-top', 'Nueva empresa', 'fa-building', 'ghost')}`;
@@ -134,7 +140,10 @@ function renderTopbarActions(routePath = currentRoute) {
   else if (routePath === '/render-apps') {
     document.getElementById('btn-add-render-cuenta')?.addEventListener('click', openNewRenderCuentaModal);
   }
-  else if (routePath === '/soporte-clientes') document.getElementById('btn-add-soporte')?.addEventListener('click', openNewSoporteModal);
+  else if (routePath === '/soporte-clientes') {
+    document.getElementById('btn-export-soporte')?.addEventListener('click', exportSoporteExcel);
+    document.getElementById('btn-add-soporte')?.addEventListener('click', openNewSoporteModal);
+  }
   else if (routePath === '/updater') document.getElementById('btn-add-updater')?.addEventListener('click', openNewUpdaterModal);
   else if (routePath === '/tokens') {
     document.getElementById('btn-add-token')?.addEventListener('click', openNewTokenModal);

@@ -151,29 +151,101 @@
   }
 }
 
-@keyframes home-logo-life {
+@keyframes home-hero-life {
   0%,
   100% {
-    transform: translateY(0) scale(1) rotate(0deg);
-    filter: drop-shadow(0 10px 24px rgba(37, 99, 235, 0.18));
+    transform: translateY(0);
+    filter: drop-shadow(0 12px 28px rgba(15, 23, 42, 0.16));
   }
-  35% {
-    transform: translateY(-10px) scale(1.04) rotate(-2deg);
-    filter: drop-shadow(0 18px 32px rgba(56, 189, 248, 0.28));
-  }
-  70% {
-    transform: translateY(-4px) scale(1.02) rotate(2deg);
-    filter: drop-shadow(0 14px 28px rgba(37, 99, 235, 0.22));
+  50% {
+    transform: translateY(-6px);
+    filter: drop-shadow(0 20px 36px rgba(37, 99, 235, 0.14));
   }
 }
 
-.home-logo {
-  animation: home-logo-life 4.5s ease-in-out infinite;
+.home-hero {
+  animation: home-hero-life 5s ease-in-out infinite;
   will-change: transform, filter;
 }
 
+.home-nav-card {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgb(226 232 240 / 0.85);
+  background: rgb(255 255 255 / 0.82);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: rgb(51 65 85);
+  text-decoration: none;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.home-nav-card:hover {
+  border-color: rgb(191 219 254);
+  background: rgb(239 246 255 / 0.95);
+  color: rgb(29 78 216);
+  box-shadow: 0 4px 12px -4px rgb(37 99 235 / 0.25);
+}
+
+.home-nav-card-icon {
+  display: inline-flex;
+  height: 1.55rem;
+  width: 1.55rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.55rem;
+  background: rgb(239 246 255);
+  color: rgb(37 99 235);
+  font-size: 0.65rem;
+}
+
+.home-nav-card:hover .home-nav-card-icon {
+  background: rgb(219 234 254);
+}
+
+.home-nav-card-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+@media (min-width: 640px) {
+  .home-nav-card {
+    gap: 0.55rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: 1rem;
+  }
+
+  .home-nav-card-icon {
+    height: 1.75rem;
+    width: 1.75rem;
+    border-radius: 0.65rem;
+    font-size: 0.72rem;
+  }
+
+  .home-nav-card-label {
+    font-size: 0.75rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .home-logo {
+  .home-hero {
     animation: none;
   }
 }
