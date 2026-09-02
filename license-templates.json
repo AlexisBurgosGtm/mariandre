@@ -1,7 +1,7 @@
 [
   {
-    "id": "2",
-    "name": "PUNTO DE VENTA NORMAL (1 SUCURSAL)",
+    "id": "4",
+    "name": "PUNTO DE VENTA NORMAL 1 SUCURSAL V.2",
     "menus": [
       "pedidos-mostrador",
       "cotizaciones",
@@ -34,6 +34,9 @@
       "documentos-eliminados",
       "auditoria-cajas",
       "reportes-ventas",
+      "reportes-clientes",
+      "reportes-productos",
+      "reportes-marcas",
       "marcas",
       "medidas",
       "proveedores",
@@ -54,11 +57,11 @@
       "updater",
       "licencia"
     ],
-    "updatedAt": "2026-08-12T19:02:03.807Z"
+    "updatedAt": "2026-08-28T18:42:40.172Z"
   },
   {
-    "id": "3",
-    "name": "FULL SYSTEM 16 08 2026",
+    "id": "5",
+    "name": "FUL SYSTEM 28 08 2026",
     "menus": [
       "pedidos-mostrador",
       "comandas-restaurante",
@@ -78,12 +81,14 @@
       "embarques",
       "asignacion-pedidos",
       "pendientes-entrega",
+      "despachos-en-cocina",
       "cuentas-cobrar",
       "recibos-caja-cxc",
       "cuentas-pagar",
       "productos-precios",
       "lista-precios",
       "inventario",
+      "relleno-inventario",
       "entradas-inventario",
       "salidas-inventario",
       "inventario-retroactivo",
@@ -97,8 +102,12 @@
       "resumen-del-dia",
       "autorizaciones",
       "documentos-eliminados",
+      "promociones",
       "auditoria-cajas",
       "reportes-ventas",
+      "reportes-clientes",
+      "reportes-productos",
+      "reportes-marcas",
       "subir-catalogo",
       "descargar-catalogo",
       "traslados-en-transito",
@@ -119,6 +128,7 @@
       "bancos",
       "cuentas-bancarias",
       "empleados",
+      "control-asistencia",
       "nomina-config",
       "nomina-conceptos",
       "nomina-empleados",
@@ -151,6 +161,6 @@
       "updater",
       "licencia"
     ],
-    "updatedAt": "2026-08-17T01:17:49.844Z"
+    "updatedAt": "2026-08-28T18:48:59.154Z"
   }
 ]

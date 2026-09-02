@@ -1,37 +1,43 @@
 /**
- * Generador de licencias OnneB embebido en Mariandre.
- * Catálogo: OnneB (MENU_GROUPS) en vivo. Claves RSA: solo en Mariandre (`license-keys/`).
+ * Generador de licencias FS ERP (El Salvador) embebido en Mariandre.
+ * Catálogo y firma leen FsERP-EL SALVADOR (MENU_GROUPS / claves propias).
+ * Independiente del generador OnneB.
  */
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const appPaths = require('./appPaths');
 
-function resolveOnnebRoot() {
-  if (process.env.ONNEB_ROOT) {
-    return path.resolve(process.env.ONNEB_ROOT);
+const PRODUCT = {
+  id: 'fserp',
+  label: 'FS ERP',
+  envRoot: 'FSERP_ROOT',
+  siblings: ['FsERP-EL SALVADOR', 'FsERP-EL-SALVADOR', 'FSERP', 'fserp'],
+  fallbackKeysDirName: 'license-keys-fserp',
+  filenamePrefix: 'fserp-license',
+  sourceLabel: 'FS ERP lib/roles-usuarios.js → MENU_GROUPS',
+};
+
+function resolveFserpRoot() {
+  if (process.env[PRODUCT.envRoot]) {
+    return path.resolve(process.env[PRODUCT.envRoot]);
   }
-  const siblings = ['OnneB-ERP', 'pos_onneb', 'OnneB', 'onneb'];
   const bases = [
     path.join(appPaths.getBundleDir(), '..'),
     path.join(__dirname, '..', '..'),
   ];
-  const candidates = [];
   for (const base of bases) {
-    for (const name of siblings) {
-      candidates.push(path.join(base, name));
+    for (const name of PRODUCT.siblings) {
+      const candidate = path.join(base, name);
+      const modulesPath = path.join(candidate, 'lib', 'license-modules.js');
+      if (fs.existsSync(modulesPath)) return path.resolve(candidate);
     }
-  }
-  for (const candidate of candidates) {
-    const modulesPath = path.join(candidate, 'lib', 'license-modules.js');
-    if (fs.existsSync(modulesPath)) return path.resolve(candidate);
   }
   return null;
 }
 
-/** Evita catálogo obsoleto si OnneB cambió MENU_GROUPS sin reiniciar Mariandre. */
-function clearOnnebRequireCache(onnebRoot) {
-  const rootResolved = path.resolve(onnebRoot);
+function clearProductRequireCache(root) {
+  const rootResolved = path.resolve(root);
   for (const key of Object.keys(require.cache)) {
     const resolved = path.resolve(key);
     if (
@@ -45,22 +51,22 @@ function clearOnnebRequireCache(onnebRoot) {
   }
 }
 
-function loadOnnebLicenseLibs(onnebRoot) {
-  clearOnnebRequireCache(onnebRoot);
-  const licenseModules = require(path.join(onnebRoot, 'lib', 'license-modules.js'));
-  const { canonicalPayload } = require(path.join(onnebRoot, 'lib', 'license.js'));
+function loadProductLicenseLibs(root) {
+  clearProductRequireCache(root);
+  const licenseModules = require(path.join(root, 'lib', 'license-modules.js'));
+  const { canonicalPayload } = require(path.join(root, 'lib', 'license.js'));
   return { ...licenseModules, canonicalPayload };
 }
 
-function keysDirFor(_onnebRoot) {
-  return path.join(appPaths.getBundleDir(), 'license-keys');
+function keysDirFor(_root) {
+  return path.join(appPaths.getBundleDir(), PRODUCT.fallbackKeysDirName);
 }
 
-function ensureKeys(onnebRoot) {
-  const keysDir = keysDirFor(onnebRoot);
+function ensureKeys(root) {
+  const keysDir = keysDirFor(root);
   const privateKeyPath = path.join(keysDir, 'private.pem');
   const publicKeyPath = path.join(keysDir, 'public.pem');
-  const appPublicKeyPath = path.join(onnebRoot, 'config', 'license-public.pem');
+  const appPublicKeyPath = path.join(root, 'config', 'license-public.pem');
 
   if (!fs.existsSync(keysDir)) fs.mkdirSync(keysDir, { recursive: true });
 
@@ -90,29 +96,32 @@ function signPayload(privateKeyPath, canonicalPayload, payload) {
 }
 
 function getGeneratorContext() {
-  const onnebRoot = resolveOnnebRoot();
-  if (!onnebRoot) {
+  const productRoot = resolveFserpRoot();
+  if (!productRoot) {
     const err = new Error(
-      'No se encontró el proyecto OnneB (OnneB-ERP). Defina ONNEB_ROOT o colóquelo junto a Mariandre.'
+      'No se encontró el proyecto FS ERP (FsERP-EL SALVADOR). Defina FSERP_ROOT o colóquelo junto a Mariandre.'
     );
     err.statusCode = 503;
     throw err;
   }
-  const libs = loadOnnebLicenseLibs(onnebRoot);
-  const keys = ensureKeys(onnebRoot);
-  return { onnebRoot, libs, keys };
+  const libs = loadProductLicenseLibs(productRoot);
+  const keys = ensureKeys(productRoot);
+  return { productRoot, libs, keys };
 }
 
 function getCatalog() {
-  const { onnebRoot, libs, keys } = getGeneratorContext();
+  const { productRoot, libs, keys } = getGeneratorContext();
   const integrity = libs.assertLicenseCatalogIntegrity({ log: () => {} });
   const modules = libs.licenseModulesCatalog();
   const menuCount = modules.reduce((n, m) => n + (m.menus?.length || 0), 0);
   return {
+    product: PRODUCT.id,
+    productLabel: PRODUCT.label,
     modules,
     coreMenus: [...libs.CORE_MENUS],
-    source: 'OnneB lib/roles-usuarios.js → MENU_GROUPS',
-    onnebRoot,
+    source: PRODUCT.sourceLabel,
+    productRoot,
+    onnebRoot: productRoot,
     keysDir: keys.keysDir,
     hasPrivateKey: fs.existsSync(keys.privateKeyPath),
     integrity,
@@ -172,6 +181,7 @@ function issueLicense(body = {}) {
 
   const payload = {
     v: 2,
+    product: PRODUCT.id,
     licenseId: crypto.randomUUID(),
     customer,
     issuedAt: new Date().toISOString(),
@@ -182,10 +192,11 @@ function issueLicense(body = {}) {
   };
 
   const doc = signPayload(keys.privateKeyPath, libs.canonicalPayload, payload);
-  const filename = `onneb-license-${customer.replace(/[^\w\-]+/g, '_').slice(0, 40)}.json`;
+  const filename = `${PRODUCT.filenamePrefix}-${customer.replace(/[^\w\-]+/g, '_').slice(0, 40)}.json`;
 
   return {
     ok: true,
+    product: PRODUCT.id,
     filename,
     license: doc,
     menus,
@@ -200,7 +211,8 @@ function getPublicKeyPem() {
 }
 
 module.exports = {
-  resolveOnnebRoot,
+  PRODUCT,
+  resolveFserpRoot,
   getCatalog,
   issueLicense,
   getPublicKeyPem,

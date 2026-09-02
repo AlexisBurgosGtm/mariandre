@@ -31,10 +31,22 @@ Abre el navegador en [http://localhost:9006](http://localhost:9006).
 | `PORT` | Puerto del servidor | `9006` |
 | `DATA_DIR` | Carpeta de datos JSON / auth | raíz del proyecto |
 | `ONNEB_ROOT` | Ruta al proyecto OnneB (`OnneB-ERP`) para el generador de licencias | carpeta hermana `../OnneB-ERP` (también acepta `pos_onneb`) |
+| `FSERP_ROOT` | Ruta al proyecto FS ERP (`FsERP-EL SALVADOR`) para licencias El Salvador | carpeta hermana `../FsERP-EL SALVADOR` |
 
-## Generador de licencias OnneB
+## Generador de licencias
 
-La sección **Generador Licencias** emite archivos `.json` firmados para instalaciones OnneB. El catálogo se lee en vivo desde OnneB (`MENU_GROUPS`). En el POS del cliente se cargan en **Configuraciones → Licencia**.
+**Mariandre es la única generadora** de licencias para OnneB y FS-SV.
+
+| Sección | Producto | Claves |
+|---------|----------|--------|
+| **Generador Licencias** | OnneB | `license-keys/` (en Mariandre) |
+| **Licencias FS ERP** | FS-SV | `license-keys-fserp/` (en Mariandre) |
+
+El catálogo se lee en vivo desde cada producto (`MENU_GROUPS`). La clave pública se sincroniza a `config/license-public.pem` del POS al emitir/cargar el catálogo. En el cliente: **Configuraciones → Licencia**.
+
+## Notas
+
+Empaquetado e instalación local de OnneB / FS-SV: ver la sección **Notas** en la app Mariandre (`#/notas`), o `dist-client/README-INSTALACION.txt` tras `npm run dist:client` en cada ERP.
 
 ## Estructura de conexiones (`conexiones.json`)
 

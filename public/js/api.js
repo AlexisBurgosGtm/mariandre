@@ -98,4 +98,18 @@ export const api = {
     request('/license-gen/templates', { method: 'POST', body: JSON.stringify(data) }),
   deleteLicenseTemplate: (id) =>
     request(`/license-gen/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+  getLicenseGenFserpCatalog: () => request('/license-gen-fserp/catalog'),
+  issueLicenseFserp: (data) =>
+    request('/license-gen-fserp/issue', { method: 'POST', body: JSON.stringify(data) }),
+  issueAndUploadLicenseFserp: (data) =>
+    request('/license-gen-fserp/issue-and-upload', { method: 'POST', body: JSON.stringify(data) }),
+  getTokenLicenseFserp: (token) =>
+    request(`/license-gen-fserp/token-license?token=${encodeURIComponent(token)}`),
+  getLicenseGenFserpPublicKey: () => fetch('/api/license-gen-fserp/public-key').then((r) => r.text()),
+  getLicenseTemplatesFserp: () => request('/license-gen-fserp/templates'),
+  saveLicenseTemplateFserp: (data) =>
+    request('/license-gen-fserp/templates', { method: 'POST', body: JSON.stringify(data) }),
+  deleteLicenseTemplateFserp: (id) =>
+    request(`/license-gen-fserp/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };

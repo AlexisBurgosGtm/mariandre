@@ -10,5 +10,11 @@
     "conexionId": "3",
     "nombre": "REDUCIR XELASOL",
     "query": "DBCC SHRINKDATABASE (db_a6478c_sygmapos,25);"
+  },
+  {
+    "id": "3",
+    "conexionId": "1",
+    "nombre": "ELIMINAR DOCUMENTOS BACKUP",
+    "query": "DELETE FROM ME_DOCUMENTOS_BACKUP WHERE DOC_ANO=2026 AND DOC_MES IN(1,2,3,4,5,6,7)"
   }
 ]

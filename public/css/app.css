@@ -2,12 +2,16 @@
 
 @theme {
   --font-sans: "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --color-ma-blue-950: #0f2744;
+  --color-ma-blue-900: #1e3a8a;
+  --color-ma-blue-800: #1d4ed8;
+  --color-ma-blue-600: #2563eb;
 }
 
 @layer base {
   html,
   body {
-    @apply h-full overflow-hidden bg-slate-100 font-sans text-slate-900 antialiased;
+    @apply h-full overflow-hidden bg-[#e8eef6] font-sans text-slate-900 antialiased;
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
@@ -20,11 +24,146 @@
     overflow: hidden;
   }
 
-  #content {
+  .ma-tab-panel {
     overflow-x: hidden;
   }
 
-  /* FAB menú: fixed, no afectado por scroll del content */
+  /* Sidebar corporativo */
+  .ma-sidebar {
+    background: linear-gradient(165deg, #0f2744 0%, #1e3a8a 48%, #1d4ed8 100%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .ma-nav-open-dot {
+    margin-left: auto;
+    height: 0.4rem;
+    width: 0.4rem;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    background: rgb(96 165 250);
+    box-shadow: 0 0 0 2px rgb(255 255 255 / 0.15);
+  }
+
+  /* Barra de pestañas — fila horizontal con scroll */
+  .ma-tab-bar {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.25rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.35) transparent;
+  }
+
+  .ma-tab-bar > div {
+    flex-shrink: 0;
+  }
+
+  .ma-tab-bar::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .ma-tab-bar::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: rgb(255 255 255 / 0.35);
+  }
+
+  .ma-tab-select {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.55rem 0.35rem 0.65rem;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.2;
+    cursor: pointer;
+  }
+
+  .ma-tab-icon {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    opacity: 0.85;
+  }
+
+  .ma-tab-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ma-tab-close {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.2rem;
+    width: 1.35rem;
+    height: 1.35rem;
+    border: none;
+    border-radius: 0.4rem;
+    background: transparent;
+    color: inherit;
+    opacity: 0.55;
+    transition:
+      opacity 0.15s ease,
+      background-color 0.15s ease;
+    cursor: pointer;
+  }
+
+  .ma-tab-close:hover {
+    opacity: 1;
+    background: rgb(15 23 42 / 0.08);
+  }
+
+  .ma-tab-active .ma-tab-close:hover {
+    background: rgb(15 23 42 / 0.08);
+  }
+
+  .ma-tab:not(.ma-tab-active) .ma-tab-close:hover {
+    background: rgb(255 255 255 / 0.15);
+  }
+
+  .ma-tab-close i {
+    font-size: 0.65rem;
+  }
+
+  @media (min-width: 640px) {
+    .ma-tab-select {
+      padding: 0.4rem 0.6rem 0.4rem 0.75rem;
+      font-size: 0.8125rem;
+    }
+  }
+
+  /* Topbar actions en header azul */
+  .ma-app-header .ma-btn-header-ghost {
+    border-color: rgb(255 255 255 / 0.25);
+    background: rgb(255 255 255 / 0.12);
+    color: white;
+  }
+
+  .ma-app-header .ma-btn-header-ghost:hover {
+    background: rgb(255 255 255 / 0.2);
+  }
+
+  .ma-app-header .ma-btn-header-primary {
+    border-color: transparent;
+    background: white;
+    color: #1d4ed8;
+  }
+
+  .ma-app-header .ma-btn-header-primary:hover {
+    background: rgb(239 246 255);
+  }
+
+  /* FAB menú */
   .ma-menu-fab {
     position: fixed;
     left: max(1rem, env(safe-area-inset-left));
@@ -36,12 +175,12 @@
     width: 3.25rem;
     height: 3.25rem;
     border-radius: 9999px;
-    border: 1px solid rgb(226 232 240);
-    background: rgba(255, 255, 255, 0.95);
-    color: rgb(30 64 175);
+    border: 1px solid rgb(191 219 254);
+    background: linear-gradient(145deg, #1d4ed8, #2563eb);
+    color: white;
     box-shadow:
-      0 10px 25px -5px rgb(15 23 42 / 0.18),
-      0 4px 10px -4px rgb(15 23 42 / 0.12);
+      0 10px 25px -5px rgb(29 78 216 / 0.45),
+      0 4px 10px -4px rgb(15 23 42 / 0.15);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     transition:
@@ -53,10 +192,10 @@
   }
 
   .ma-menu-fab:hover {
-    background: rgb(239 246 255);
+    background: linear-gradient(145deg, #2563eb, #3b82f6);
     box-shadow:
-      0 14px 28px -6px rgb(15 23 42 / 0.22),
-      0 6px 12px -4px rgb(15 23 42 / 0.14);
+      0 14px 28px -6px rgb(29 78 216 / 0.5),
+      0 6px 12px -4px rgb(15 23 42 / 0.18);
   }
 
   .ma-menu-fab:active {
@@ -73,8 +212,8 @@
     font-size: 1.05rem;
   }
 
-  /* Tablas anchas: scroll solo dentro del panel, no del viewport */
-  #content .overflow-x-auto {
+  /* Tablas anchas: scroll solo dentro del panel */
+  .ma-tab-panel .overflow-x-auto {
     max-width: 100%;
     -webkit-overflow-scrolling: touch;
   }
@@ -176,25 +315,31 @@
   gap: 0.45rem;
   padding: 0.35rem 0.55rem;
   border-radius: 0.85rem;
-  border: 1px solid rgb(226 232 240 / 0.85);
-  background: rgb(255 255 255 / 0.82);
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
+  border: 1px solid rgb(191 219 254 / 0.7);
+  background: rgb(255 255 255 / 0.95);
+  box-shadow: 0 1px 3px rgb(29 78 216 / 0.08);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  color: rgb(51 65 85);
+  color: rgb(30 58 138);
   text-decoration: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  width: 100%;
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease,
     color 0.15s ease,
-    box-shadow 0.15s ease;
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 }
 
 .home-nav-card:hover {
-  border-color: rgb(191 219 254);
-  background: rgb(239 246 255 / 0.95);
+  border-color: rgb(37 99 235);
+  background: rgb(239 246 255);
   color: rgb(29 78 216);
-  box-shadow: 0 4px 12px -4px rgb(37 99 235 / 0.25);
+  box-shadow: 0 6px 16px -4px rgb(37 99 235 / 0.28);
+  transform: translateY(-1px);
 }
 
 .home-nav-card-icon {
@@ -205,13 +350,14 @@
   align-items: center;
   justify-content: center;
   border-radius: 0.55rem;
-  background: rgb(239 246 255);
-  color: rgb(37 99 235);
+  background: linear-gradient(145deg, #1d4ed8, #3b82f6);
+  color: white;
   font-size: 0.65rem;
+  box-shadow: 0 2px 6px rgb(29 78 216 / 0.25);
 }
 
 .home-nav-card:hover .home-nav-card-icon {
-  background: rgb(219 234 254);
+  background: linear-gradient(145deg, #2563eb, #60a5fa);
 }
 
 .home-nav-card-label {

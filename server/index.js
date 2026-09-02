@@ -8,6 +8,7 @@ const hostingDb = require('./hostingDb');
 const renderApi = require('./renderApi');
 const appPaths = require('./appPaths');
 const licenseGenerator = require('./license-generator');
+const licenseGeneratorFserp = require('./license-generator-fserp');
 
 const PORT = Number(process.env.PORT) || 9006;
 
@@ -80,6 +81,24 @@ async function readLicenseTemplates() {
 
 async function writeLicenseTemplates(templates) {
   await fs.writeFile(appPaths.licenseTemplatesPath(), JSON.stringify(templates, null, 2), 'utf-8');
+}
+
+async function readLicenseTemplatesFserp() {
+  try {
+    const data = await fs.readFile(appPaths.licenseTemplatesFserpPath(), 'utf-8');
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      await fs.writeFile(appPaths.licenseTemplatesFserpPath(), '[]', 'utf-8');
+      return [];
+    }
+    throw err;
+  }
+}
+
+async function writeLicenseTemplatesFserp(templates) {
+  await fs.writeFile(appPaths.licenseTemplatesFserpPath(), JSON.stringify(templates, null, 2), 'utf-8');
 }
 
 function parseAlarmaTime(body) {
@@ -536,6 +555,147 @@ function createApp() {
         return res.status(404).json({ error: 'Plantilla no encontrada' });
       }
       await writeLicenseTemplates(next);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /** Licencias FS ERP (El Salvador) — catálogo/claves/plantillas ajenas a OnneB. */
+  app.get('/api/license-gen-fserp/catalog', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      res.json(licenseGeneratorFserp.getCatalog());
+    } catch (err) {
+      res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/license-gen-fserp/issue', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      res.json(licenseGeneratorFserp.issueLicense(req.body || {}));
+    } catch (err) {
+      res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/license-gen-fserp/issue-and-upload', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const token = String(req.body?.token || '').trim();
+      if (!token) {
+        return res.status(400).json({ error: 'Seleccione un token (cliente / instalación)' });
+      }
+      const { conexion } = await resolveHostingConexion();
+      const tokens = await hostingDb.listTokensAdmin(conexion);
+      const row = tokens.find(
+        (t) => String(t.TOKEN || '').trim().toUpperCase() === token.toUpperCase()
+      );
+      if (!row) {
+        return res.status(404).json({ error: 'Token no encontrado en la tabla TOKENS' });
+      }
+      const customer =
+        String(row.EMPRESA || '').trim() || String(row.TOKEN || '').trim();
+      const issued = licenseGeneratorFserp.issueLicense({
+        customer,
+        expiresAt: req.body?.expiresAt || null,
+        notes: req.body?.notes || '',
+        menus: req.body?.menus || [],
+        modules: req.body?.modules || [],
+      });
+      await hostingDb.uploadTokenLicencia(conexion, token, issued.license);
+      res.json({
+        ...issued,
+        uploaded: true,
+        token: row.TOKEN,
+        empresa: row.EMPRESA,
+      });
+    } catch (err) {
+      res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/license-gen-fserp/token-license', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const token = String(req.query.token || '').trim();
+      if (!token) {
+        return res.status(400).json({ error: 'Indique el token' });
+      }
+      const { conexion } = await resolveHostingConexion();
+      const data = await hostingDb.getTokenLicencia(conexion, token);
+      const product = String(data?.license?.payload?.product || data?.product || '').trim().toLowerCase();
+      if (product && product !== 'fserp') {
+        return res.status(409).json({
+          error:
+            'La licencia en nube de este token no es de FS ERP (parece OnneB u otro producto). Use el Generador Licencias de OnneB o emita una nueva FS ERP.',
+          product,
+        });
+      }
+      res.json(data);
+    } catch (err) {
+      res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/license-gen-fserp/public-key', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      res.type('text/plain').send(licenseGeneratorFserp.getPublicKeyPem());
+    } catch (err) {
+      res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/license-gen-fserp/templates', async (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      res.json(await readLicenseTemplatesFserp());
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/license-gen-fserp/templates', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const name = String(req.body?.name || '').trim();
+      if (!name) return res.status(400).json({ error: 'Indique el nombre de la plantilla' });
+      const menus = Array.isArray(req.body?.menus)
+        ? [...new Set(req.body.menus.map((m) => String(m || '').trim()).filter(Boolean))]
+        : [];
+      if (!menus.length) {
+        return res.status(400).json({ error: 'Seleccione al menos una vista para guardar la plantilla' });
+      }
+      const templates = await readLicenseTemplatesFserp();
+      const existingIdx = templates.findIndex(
+        (t) => String(t.name || '').trim().toLowerCase() === name.toLowerCase()
+      );
+      const row = {
+        id: existingIdx >= 0 ? templates[existingIdx].id : generateId(templates),
+        name,
+        menus,
+        updatedAt: new Date().toISOString(),
+      };
+      if (existingIdx >= 0) templates[existingIdx] = { ...templates[existingIdx], ...row };
+      else templates.push(row);
+      await writeLicenseTemplatesFserp(templates);
+      res.json(row);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/license-gen-fserp/templates/:id', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const templates = await readLicenseTemplatesFserp();
+      const next = templates.filter((t) => String(t.id) !== String(req.params.id));
+      if (next.length === templates.length) {
+        return res.status(404).json({ error: 'Plantilla no encontrada' });
+      }
+      await writeLicenseTemplatesFserp(next);
       res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
