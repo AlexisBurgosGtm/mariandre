@@ -163,6 +163,50 @@
     background: rgb(239 246 255);
   }
 
+  .ma-voz-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    align-self: center;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    padding: 0.35rem 0.7rem;
+    color: #fff;
+    font-size: 0.85rem;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+  }
+
+  .ma-voz-badge.is-off {
+    background: #dc2626;
+    border-color: #fecaca;
+  }
+
+  .ma-voz-badge.is-on {
+    background: #16a34a;
+    border-color: #bbf7d0;
+  }
+
+  .ma-voz-badge.is-listen {
+    background: #ca8a04;
+    border-color: #fde68a;
+    animation: ma-voz-pulse 1s ease-in-out infinite;
+  }
+
+  .ma-voz-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 0 0 2px rgb(255 255 255 / 0.25);
+  }
+
+  @keyframes ma-voz-pulse {
+    0%, 100% { transform: scale(1); filter: brightness(1); }
+    50% { transform: scale(1.06); filter: brightness(1.12); }
+  }
+
   /* FAB menú */
   .ma-menu-fab {
     position: fixed;

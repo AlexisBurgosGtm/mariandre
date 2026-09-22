@@ -10,6 +10,7 @@ import { renderSoporteClientes, openNewSoporteModal, exportSoporteExcel } from '
 import { renderUpdater, openNewUpdaterModal } from './pages/updater.js';
 import { renderTokens, openNewTokenModal, openNewCommunityModal } from './pages/tokens.js';
 import { renderConfiguraciones } from './pages/configuraciones.js';
+import { initVoz } from './services/voz.js';
 import { renderAlarmas, openNewAlarmaModal } from './pages/alarmas.js';
 import { renderGeneradorLicencias } from './pages/generador-licencias.js';
 import { renderGeneradorLicenciasFserp } from './pages/generador-licencias-fserp.js';
@@ -419,3 +420,4 @@ setInterval(checkServerStatus, 30000);
 initTts();
 initWhatsAppListener();
 initAlarmas();
+initVoz();

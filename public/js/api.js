@@ -26,6 +26,7 @@ export const api = {
   createSoporteAnydesk: (data) => request('/soporte/anydesk', { method: 'POST', body: JSON.stringify(data) }),
   updateSoporteAnydesk: (id, data) => request(`/soporte/anydesk/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteSoporteAnydesk: (id) => request(`/soporte/anydesk/${id}`, { method: 'DELETE' }),
+  conectarSoporteAnydesk: (id) => request(`/soporte/anydesk/${id}/conectar`, { method: 'POST' }),
   getUpdaterQueries: () => request('/updater/queries'),
   createUpdaterQuery: (data) => request('/updater/queries', { method: 'POST', body: JSON.stringify(data) }),
   updateUpdaterQuery: (id, data) => request(`/updater/queries/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -112,4 +113,13 @@ export const api = {
     request('/license-gen-fserp/templates', { method: 'POST', body: JSON.stringify(data) }),
   deleteLicenseTemplateFserp: (id) =>
     request(`/license-gen-fserp/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+  getComandosVoz: () => request('/comandos-voz'),
+  createComandoVoz: (data) => request('/comandos-voz', { method: 'POST', body: JSON.stringify(data) }),
+  updateComandoVoz: (id, data) =>
+    request(`/comandos-voz/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteComandoVoz: (id) =>
+    request(`/comandos-voz/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  ejecutarComandoVoz: (id) =>
+    request(`/comandos-voz/${encodeURIComponent(id)}/ejecutar`, { method: 'POST' }),
 };

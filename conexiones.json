@@ -40,24 +40,6 @@
     }
   },
   {
-    "id": "4",
-    "nombre": "TECNOSYSTEM",
-    "tipo": "mysql",
-    "host": "mysql5048.site4now.net",
-    "usuario": "a6478c_tecnico",
-    "password": "razors1805",
-    "baseDatos": "db_a6478c_tecnico"
-  },
-  {
-    "id": "5",
-    "nombre": "PROXY",
-    "tipo": "mysql",
-    "host": "mysql5048.site4now.net",
-    "usuario": "a6478c_proxy",
-    "password": "razors1805",
-    "baseDatos": "db_a6478c_proxy"
-  },
-  {
     "id": "6",
     "nombre": "HOST SYNC",
     "tipo": "mssql",

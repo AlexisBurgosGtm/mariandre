@@ -235,6 +235,9 @@ function renderSoporteRows(records, tokenMap) {
       <td class="${tw.td}">${escapeHtml(r.VENDEDOR || '')}</td>
       <td class="${tw.td}">${escapeHtml(formatLastUpdate(r.LASTUPDATE) || '—')}</td>
       <td class="${cx(tw.td, tw.tableActions)}">
+        <button class="${cx(tw.btnGhost, tw.btnSm)} btn-conectar-anydesk" data-id="${escapeHtml(r.ID)}" title="Abrir AnyDesk" ${String(r.ANYDESK || '').trim() ? '' : 'disabled'}>
+          <i class="fa-solid fa-desktop"></i>
+        </button>
         <button class="${cx(tw.btnGhost, tw.btnSm)} btn-edit-soporte" data-id="${escapeHtml(r.ID)}" title="Editar">
           <i class="fa-solid fa-pen"></i>
         </button>
@@ -255,6 +258,24 @@ function refreshSoporteTable(container, tokenMap, reload) {
 }
 
 function bindSoporteEvents(container, records, tokens, reload) {
+  container.querySelectorAll('.btn-conectar-anydesk').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (btn.disabled) return;
+      btn.disabled = true;
+      try {
+        const result = await api.conectarSoporteAnydesk(btn.dataset.id);
+        showToast(
+          result?.conPassword ? 'AnyDesk abierto con contraseña' : 'AnyDesk abierto (sin contraseña en el registro)',
+          'success'
+        );
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
   container.querySelectorAll('.btn-edit-soporte').forEach((btn) => {
     btn.addEventListener('click', () => {
       const record = records.find((r) => String(r.ID) === String(btn.dataset.id));

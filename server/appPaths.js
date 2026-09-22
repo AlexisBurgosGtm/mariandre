@@ -49,6 +49,10 @@ function alarmasPath() {
   return path.join(getDataDir(), 'alarmas.json');
 }
 
+function comandosVozPath() {
+  return path.join(getDataDir(), 'comandos-voz.json');
+}
+
 function licenseTemplatesPath() {
   return path.join(getDataDir(), 'license-templates.json');
 }
@@ -129,6 +133,12 @@ async function ensureDataFiles() {
   );
 
   await copyIfMissing(
+    path.join(getBundleDir(), 'comandos-voz.json'),
+    comandosVozPath(),
+    '[]'
+  );
+
+  await copyIfMissing(
     path.join(getBundleDir(), 'license-templates.json'),
     licenseTemplatesPath(),
     '[]'
@@ -160,6 +170,7 @@ module.exports = {
   configPath,
   serviciosOnlinePath,
   alarmasPath,
+  comandosVozPath,
   licenseTemplatesPath,
   licenseTemplatesFserpPath,
   whatsappAuthPath,

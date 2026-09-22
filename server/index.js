@@ -9,6 +9,7 @@ const renderApi = require('./renderApi');
 const appPaths = require('./appPaths');
 const licenseGenerator = require('./license-generator');
 const licenseGeneratorFserp = require('./license-generator-fserp');
+const { launchAnyDesk } = require('./anydesk-launch');
 
 const PORT = Number(process.env.PORT) || 9006;
 
@@ -63,6 +64,116 @@ async function readAlarmas() {
 
 async function writeAlarmas(alarmas) {
   await fs.writeFile(appPaths.alarmasPath(), JSON.stringify(alarmas, null, 2), 'utf-8');
+}
+
+const DEFAULT_COMANDO_VOZ = {
+  id: '1',
+  frase: 'haz una prueba de conexión',
+  url: 'https://me-app-peten.onrender.com/test_service',
+  activo: true,
+};
+
+async function readComandosVoz() {
+  try {
+    const data = await fs.readFile(appPaths.comandosVozPath(), 'utf-8');
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      const seed = [DEFAULT_COMANDO_VOZ];
+      await writeComandosVoz(seed);
+      return seed;
+    }
+    throw err;
+  }
+}
+
+async function writeComandosVoz(comandos) {
+  await fs.writeFile(appPaths.comandosVozPath(), JSON.stringify(comandos, null, 2), 'utf-8');
+}
+
+function normalizeComandoVoz(body, existing = {}) {
+  const frase = String(body.frase ?? existing.frase ?? '').trim();
+  const url = String(body.url ?? existing.url ?? '').trim();
+  if (!frase) throw new Error('La frase del comando es obligatoria');
+  if (!url) throw new Error('La URL del endpoint es obligatoria');
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error('La URL del endpoint no es válida');
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('La URL debe ser http o https');
+  }
+  const activo = body.activo === undefined ? existing.activo !== false : Boolean(body.activo);
+  return { frase, url: parsed.toString(), activo };
+}
+
+function jsonToSpeech(value) {
+  if (value == null) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    return value.map(jsonToSpeech).filter(Boolean).join('. ');
+  }
+  if (typeof value === 'object') {
+    for (const key of ['mensaje', 'message', 'texto', 'text', 'error']) {
+      if (typeof value[key] === 'string' && value[key].trim()) return value[key].trim();
+    }
+    const strings = Object.values(value)
+      .filter((v) => typeof v === 'string' && v.trim())
+      .map((v) => v.trim());
+    if (strings.length) return strings.join('. ');
+  }
+  return '';
+}
+
+function extractSpeakable(raw) {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return '';
+  try {
+    return jsonToSpeech(JSON.parse(trimmed));
+  } catch {
+    return trimmed.slice(0, 800);
+  }
+}
+
+async function ejecutarComandoVozUrl(url) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25000);
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+        'User-Agent': 'MariAndre/1.0',
+      },
+    });
+    const raw = await response.text();
+    const texto = extractSpeakable(raw);
+    if (!response.ok && !texto) {
+      const err = new Error(`Error HTTP ${response.status}`);
+      err.statusCode = 502;
+      throw err;
+    }
+    return {
+      ok: response.ok,
+      status: response.status,
+      texto: texto || `Respuesta ${response.status} sin texto para leer`,
+    };
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      const timeoutErr = new Error('Tiempo de espera agotado al llamar el endpoint');
+      timeoutErr.statusCode = 504;
+      throw timeoutErr;
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function readLicenseTemplates() {
@@ -1101,6 +1212,19 @@ function createApp() {
     }
   });
 
+  app.post('/api/soporte/anydesk/:id/conectar', async (req, res) => {
+    try {
+      const { conexion } = await resolveHostingConexion();
+      const rows = await hostingDb.listSoporteAnydesk(conexion);
+      const row = rows.find((r) => String(r.ID) === String(req.params.id));
+      if (!row) return res.status(404).json({ error: 'Registro no encontrado' });
+      const result = await launchAnyDesk({ anydesk: row.ANYDESK, password: row.PASS });
+      res.json(result);
+    } catch (err) {
+      res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  });
+
   app.get('/api/updater/queries', async (_req, res) => {
     try {
       const { conexion } = await resolveHostingConexion();
@@ -1512,14 +1636,75 @@ function createApp() {
   app.delete('/api/alarmas/:id', async (req, res) => {
     try {
       const alarmas = await readAlarmas();
-      const filtered = alarmas.filter((a) => a.id !== req.params.id);
-      if (filtered.length === alarmas.length) {
+      const next = alarmas.filter((a) => a.id !== req.params.id);
+      if (next.length === alarmas.length) {
         return res.status(404).json({ error: 'Alarma no encontrada' });
       }
-      await writeAlarmas(filtered);
+      await writeAlarmas(next);
       res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/comandos-voz', async (_req, res) => {
+    try {
+      res.json(await readComandosVoz());
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/comandos-voz', async (req, res) => {
+    try {
+      const comandos = await readComandosVoz();
+      const parsed = normalizeComandoVoz(req.body);
+      const nuevo = { id: generateId(comandos), ...parsed };
+      comandos.push(nuevo);
+      await writeComandosVoz(comandos);
+      res.status(201).json(nuevo);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/comandos-voz/:id', async (req, res) => {
+    try {
+      const comandos = await readComandosVoz();
+      const index = comandos.findIndex((c) => c.id === req.params.id);
+      if (index === -1) return res.status(404).json({ error: 'Comando no encontrado' });
+      const parsed = normalizeComandoVoz(req.body, comandos[index]);
+      comandos[index] = { ...comandos[index], ...parsed, id: req.params.id };
+      await writeComandosVoz(comandos);
+      res.json(comandos[index]);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/comandos-voz/:id', async (req, res) => {
+    try {
+      const comandos = await readComandosVoz();
+      const next = comandos.filter((c) => c.id !== req.params.id);
+      if (next.length === comandos.length) {
+        return res.status(404).json({ error: 'Comando no encontrado' });
+      }
+      await writeComandosVoz(next);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/comandos-voz/:id/ejecutar', async (req, res) => {
+    try {
+      const comandos = await readComandosVoz();
+      const comando = comandos.find((c) => c.id === req.params.id);
+      if (!comando) return res.status(404).json({ error: 'Comando no encontrado' });
+      const result = await ejecutarComandoVozUrl(comando.url);
+      res.json({ ...result, frase: comando.frase, url: comando.url });
+    } catch (err) {
+      res.status(err.statusCode || 500).json({ error: err.message });
     }
   });
 

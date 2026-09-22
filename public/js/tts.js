@@ -80,6 +80,10 @@ export function clearSpeakQueue() {
   speakQueue.length = 0;
 }
 
+export function isTtsSpeaking() {
+  return isSpeaking || (typeof speechSynthesis !== 'undefined' && speechSynthesis.speaking);
+}
+
 export async function initTts() {
   await loadVoices();
 }
