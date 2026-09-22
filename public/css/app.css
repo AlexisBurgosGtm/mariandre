@@ -346,24 +346,137 @@
   }
 }
 
-.home-hero {
+.home-page {
+  position: relative;
+  height: calc(100dvh - 4.5rem);
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.home-page-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.home-page-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgb(232 238 246 / 0.72) 0%, rgb(232 238 246 / 0.88) 42%, rgb(232 238 246 / 0.94) 100%),
+    linear-gradient(135deg, rgb(29 78 216 / 0.12), rgb(99 102 241 / 0.08));
+}
+
+.home-page-body {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem 0.75rem calc(4.25rem + env(safe-area-inset-bottom, 0px));
+}
+
+.home-nav-grid {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  align-content: start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.home-hero-aside {
+  display: none;
+}
+
+.home-hero-frame {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-hero-img {
+  height: 100%;
+  width: auto;
+  max-height: 100%;
+  max-width: 100%;
+  border-radius: 1.5rem;
+  object-fit: contain;
+  object-position: center;
   animation: home-hero-life 5s ease-in-out infinite;
   will-change: transform, filter;
+}
+
+.home-image-change-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(191 219 254 / 0.85);
+  background: rgb(255 255 255 / 0.96);
+  padding: 0.55rem 1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgb(29 78 216);
+  box-shadow: 0 8px 24px -10px rgb(29 78 216 / 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.home-image-change-btn:hover:not(:disabled) {
+  border-color: rgb(37 99 235);
+  background: rgb(239 246 255);
+  color: rgb(30 64 175);
+  transform: translateY(-1px);
+}
+
+.home-image-change-btn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.home-image-change-btn--mobile {
+  position: absolute;
+  right: 0.75rem;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  left: 0.75rem;
+  z-index: 3;
+  width: auto;
 }
 
 .home-nav-card {
   display: flex;
   min-width: 0;
-  min-height: 0;
+  min-height: 3.35rem;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.35rem 0.55rem;
-  border-radius: 0.85rem;
-  border: 1px solid rgb(191 219 254 / 0.7);
-  background: rgb(255 255 255 / 0.95);
-  box-shadow: 0 1px 3px rgb(29 78 216 / 0.08);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 1rem;
+  border: 1px solid rgb(191 219 254 / 0.82);
+  background: rgb(255 255 255 / 0.94);
+  box-shadow: 0 4px 18px -8px rgb(29 78 216 / 0.35);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   color: rgb(30 58 138);
   text-decoration: none;
   cursor: pointer;
@@ -382,22 +495,22 @@
   border-color: rgb(37 99 235);
   background: rgb(239 246 255);
   color: rgb(29 78 216);
-  box-shadow: 0 6px 16px -4px rgb(37 99 235 / 0.28);
+  box-shadow: 0 10px 24px -8px rgb(37 99 235 / 0.35);
   transform: translateY(-1px);
 }
 
 .home-nav-card-icon {
   display: inline-flex;
-  height: 1.55rem;
-  width: 1.55rem;
+  height: 2.25rem;
+  width: 2.25rem;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border-radius: 0.55rem;
+  border-radius: 0.75rem;
   background: linear-gradient(145deg, #1d4ed8, #3b82f6);
   color: white;
-  font-size: 0.65rem;
-  box-shadow: 0 2px 6px rgb(29 78 216 / 0.25);
+  font-size: 0.95rem;
+  box-shadow: 0 2px 8px rgb(29 78 216 / 0.28);
 }
 
 .home-nav-card:hover .home-nav-card-icon {
@@ -408,14 +521,110 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.68rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.25;
   letter-spacing: -0.01em;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 640px) and (max-width: 1023px) {
+  .home-page-body {
+    padding-inline: 1rem;
+  }
+
+  .home-nav-grid {
+    gap: 0.75rem;
+  }
+
+  .home-nav-card {
+    min-height: 3.65rem;
+    padding: 0.85rem 1rem;
+  }
+
+  .home-nav-card-icon {
+    height: 2.4rem;
+    width: 2.4rem;
+    font-size: 1rem;
+  }
+
+  .home-nav-card-label {
+    font-size: 0.88rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .home-page {
+    height: calc(100dvh - 5rem);
+  }
+
+  .home-page-bg,
+  .home-page-overlay {
+    display: none;
+  }
+
+  .home-page-body {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 1rem;
+    padding: 0;
+    padding-bottom: 0;
+  }
+
+  .home-nav-grid {
+    min-width: 0;
+    flex: 1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    align-content: stretch;
+    overflow: hidden;
+  }
+
+  .home-hero-aside {
+    display: flex;
+    width: 42%;
+    max-width: 28rem;
+    min-width: 0;
+    flex-shrink: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .home-image-change-btn--mobile {
+    display: none;
+  }
+
+  .home-nav-card {
+    min-height: 0;
+    gap: 0.45rem;
+    padding: 0.35rem 0.55rem;
+    border-radius: 0.85rem;
+    border-color: rgb(191 219 254 / 0.7);
+    background: rgb(255 255 255 / 0.95);
+    box-shadow: 0 1px 3px rgb(29 78 216 / 0.08);
+  }
+
+  .home-nav-card-icon {
+    height: 1.55rem;
+    width: 1.55rem;
+    border-radius: 0.55rem;
+    font-size: 0.65rem;
+    box-shadow: 0 2px 6px rgb(29 78 216 / 0.25);
+  }
+
+  .home-nav-card-label {
+    white-space: nowrap;
+    font-size: 0.68rem;
+    line-height: 1.2;
+  }
+}
+
+@media (min-width: 1280px) {
+  .home-nav-grid {
+    gap: 0.5rem;
+  }
+
   .home-nav-card {
     gap: 0.55rem;
     padding: 0.45rem 0.7rem;
@@ -435,7 +644,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-hero {
+  .home-hero-img {
     animation: none;
   }
 }

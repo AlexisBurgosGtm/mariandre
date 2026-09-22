@@ -47,6 +47,18 @@ function renderAppUrlLink(url, extraClass = '') {
   >${escapeHtml(url)}</a>`;
 }
 
+function renderDeployHookLink(url) {
+  const href = toAppHref(url);
+  if (!href) return '—';
+  return `<a
+    href="${escapeHtml(href)}"
+    target="_blank"
+    rel="noopener noreferrer"
+    class="inline-flex items-center gap-1 font-medium text-emerald-700 underline decoration-emerald-300 underline-offset-2 transition hover:text-emerald-800"
+    title="Abrir deploy hook y disparar un deploy"
+  ><i class="fa-solid fa-bolt text-[10px]"></i> Activar</a>`;
+}
+
 function filterCuentas(rows, search) {
   const q = search.trim().toLowerCase();
   if (!q) return rows;
@@ -190,6 +202,7 @@ function renderAppsTable(rows) {
           <th class="${thCls}">URL</th>
           <th class="${thCls}">Service ID</th>
           <th class="${thCls}">Usage</th>
+          <th class="${thCls}">Deploy hook</th>
           <th class="${thCls}"></th>
         </tr>
       </thead>
@@ -199,7 +212,9 @@ function renderAppsTable(rows) {
             <td class="${tdCls}"><span class="block max-w-[16rem] truncate">${renderAppUrlLink(r.URL, 'block truncate')}</span></td>
             <td class="${tdCls}"><code class="break-all font-mono text-[10px] text-slate-700">${escapeHtml(r.SERVICEID || '—')}</code></td>
             <td class="${tdCls} tabular-nums">${escapeHtml(r.USAGE ?? 0)}</td>
+            <td class="${tdCls}">${renderDeployHookLink(r.DEPLOYHOOK)}</td>
             <td class="${cx(tdCls, tw.tableActions)}">
+              <button type="button" class="${cx(tw.btnGhost, 'px-2 py-1 text-[10px]')} btn-edit-app" data-id="${escapeHtml(r.IDSERVICIO)}" title="Editar deploy hook"><i class="fa-solid fa-pen"></i></button>
               <button type="button" class="${cx(tw.btnDanger, 'px-2 py-1 text-[10px]')} btn-delete-app" data-id="${escapeHtml(r.IDSERVICIO)}" title="Eliminar en Render y en la base"><i class="fa-solid fa-trash"></i></button>
             </td>
           </tr>
@@ -225,6 +240,7 @@ function renderGlobalAppsResults(rows, search) {
           <th class="${thCls}">URL</th>
           <th class="${thCls}">Cuenta</th>
           <th class="${thCls}">Usage</th>
+          <th class="${thCls}">Deploy hook</th>
         </tr>
       </thead>
       <tbody>
@@ -233,6 +249,7 @@ function renderGlobalAppsResults(rows, search) {
             <td class="${tdCls}"><span class="block max-w-xl truncate">${renderAppUrlLink(r.URL, 'block truncate')}</span></td>
             <td class="${tdCls}">${escapeHtml(r.CUENTA_EMAIL || `ID ${r.IDRENDER}`)}</td>
             <td class="${tdCls} tabular-nums">${escapeHtml(r.USAGE ?? 0)}</td>
+            <td class="${tdCls}">${renderDeployHookLink(r.DEPLOYHOOK)}</td>
           </tr>
         `).join('')}
       </tbody>
@@ -411,7 +428,64 @@ async function consultUsage(idRender, button) {
   }
 }
 
+function getAppFormHtml(record) {
+  const data = record || {};
+  return `
+    <form id="render-app-form" autocomplete="off" novalidate>
+      <div class="${tw.formGrid}">
+        <div class="${tw.formGroupFull}">
+          <label class="${tw.label}" for="app-url">URL</label>
+          <input class="${tw.input}" type="text" id="app-url" value="${escapeHtml(data.URL || '')}" readonly tabindex="-1">
+        </div>
+        <div class="${tw.formGroupFull}">
+          <label class="${tw.label}" for="app-serviceid">SERVICEID</label>
+          <input class="${tw.input}" type="text" id="app-serviceid" value="${escapeHtml(data.SERVICEID || '')}" readonly tabindex="-1">
+        </div>
+        <div class="${tw.formGroupFull}">
+          <label class="${tw.label}" for="app-deployhook">DEPLOYHOOK</label>
+          <input class="${tw.input}" type="text" id="app-deployhook" value="${escapeHtml(data.DEPLOYHOOK || '')}" placeholder="https://api.render.com/deploy/srv-...?key=..." autocomplete="off" spellcheck="false">
+          <small class="mt-1 text-xs text-slate-500">URL secreta del Deploy Hook (Settings del servicio en Render). Vacío para quitarlo.</small>
+        </div>
+      </div>
+      <div class="${tw.formActions}">
+        <button type="submit" class="${tw.btnPrimary}"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+      </div>
+    </form>
+  `;
+}
+
+function openAppModal(record, reload) {
+  openModal(`Deploy hook — ${record.URL || record.SERVICEID || record.IDSERVICIO}`, getAppFormHtml(record), (_root, close) => {
+    const form = document.getElementById('render-app-form');
+    bindForm(form, close, async () => {
+      const deployHook = form.querySelector('#app-deployhook').value.trim();
+      if (deployHook && !/^https?:\/\//i.test(deployHook)) {
+        throw new Error('DEPLOYHOOK debe ser una URL http(s)');
+      }
+      await api.updateRenderApp(record.IDSERVICIO, {
+        IDRENDER: record.IDRENDER,
+        URL: record.URL || '',
+        USAGE: record.USAGE ?? 0,
+        SERVICEID: record.SERVICEID || '',
+        DEPLOYHOOK: deployHook,
+      });
+      showToast(deployHook ? 'Deploy hook guardado' : 'Deploy hook quitado', 'success');
+    }, reload);
+  });
+}
+
 function bindAppEvents(container) {
+  container.querySelectorAll('.btn-edit-app').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const record = pageState.apps.find((r) => String(r.IDSERVICIO) === String(btn.dataset.id));
+      if (!record) return;
+      openAppModal(record, async () => {
+        await loadApps(container);
+        if (pageState.globalAppSearch.trim()) await runGlobalAppSearch(container);
+      });
+    });
+  });
+
   container.querySelectorAll('.btn-delete-app').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const record = pageState.apps.find((r) => String(r.IDSERVICIO) === String(btn.dataset.id));
@@ -449,7 +523,7 @@ async function loadWebappsForCuenta(idRender, button, container) {
 
   const confirmed = await confirmDialog({
     title: 'Cargar webapps',
-    text: 'Se eliminarán las apps registradas de esta cuenta y se reemplazarán con las webapps actuales de Render.com (URL + Service ID).',
+    text: 'Se eliminarán las apps registradas de esta cuenta y se reemplazarán con las webapps actuales de Render.com (URL + Service ID). Los Deploy Hook ya guardados se conservan si el Service ID coincide.',
     confirmText: 'Sí, cargar',
   });
   if (!confirmed) return;

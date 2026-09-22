@@ -77,6 +77,14 @@ function publicPath() {
   return path.join(getBundleDir(), 'public');
 }
 
+function homeImagePath() {
+  return path.join(getDataDir(), 'inicio.png');
+}
+
+function homeImageDefaultPath() {
+  return path.join(publicPath(), 'inicio.png');
+}
+
 async function copyIfMissing(source, target, fallbackContent) {
   try {
     await fs.access(target);
@@ -177,5 +185,7 @@ module.exports = {
   resolveModule,
   resolveModulePath,
   publicPath,
+  homeImagePath,
+  homeImageDefaultPath,
   getAppInfo,
 };

@@ -18,6 +18,8 @@ async function request(path, options = {}) {
 
 export const api = {
   getStatus: () => request('/status'),
+  uploadHomeImage: (image) => request('/home/image', { method: 'POST', body: JSON.stringify({ image }) }),
+  resetHomeImage: () => request('/home/image', { method: 'DELETE' }),
   getConfig: () => request('/config'),
   updateConfig: (data) => request('/config', { method: 'PUT', body: JSON.stringify(data) }),
   getHostingStatus: () => request('/hosting/status'),
@@ -57,6 +59,7 @@ export const api = {
     const params = new URLSearchParams({ search });
     return request(`/render/apps/search?${params}`);
   },
+  updateRenderApp: (id, data) => request(`/render/apps/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteRenderApp: (id) => request(`/render/apps/${id}`, { method: 'DELETE' }),
   getConexiones: () => request('/conexiones'),
   getConexion: (id) => request(`/conexiones/${id}`),

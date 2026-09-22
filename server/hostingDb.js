@@ -976,7 +976,7 @@ async function deleteServicioOnline(conexion, id) {
 
 /** Columnas reales existentes en Hosting: RENDER_CUENTAS / RENDER_APPS. */
 const RENDER_CUENTA_FIELDS = 'IDRENDER, EMAIL, PASS, APIKEY';
-const RENDER_APP_FIELDS = 'IDSERVICIO, IDRENDER, URL, [USAGE], SERVICEID';
+const RENDER_APP_FIELDS = 'IDSERVICIO, IDRENDER, URL, [USAGE], SERVICEID, DEPLOYHOOK';
 
 async function ensureRenderAppsServiceIdColumn(conexion) {
   return withHostingConnection(conexion, async (db, tipo) => {
@@ -986,15 +986,23 @@ async function ensureRenderAppsServiceIdColumn(conexion) {
         BEGIN
           ALTER TABLE dbo.RENDER_APPS ADD SERVICEID NVARCHAR(120) NULL;
         END
+        IF COL_LENGTH('dbo.RENDER_APPS', 'DEPLOYHOOK') IS NULL
+        BEGIN
+          ALTER TABLE dbo.RENDER_APPS ADD DEPLOYHOOK NVARCHAR(1000) NULL;
+        END
       `);
       return;
     }
     const [cols] = await db.query(`
       SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-      WHERE TABLE_NAME = 'RENDER_APPS' AND COLUMN_NAME = 'SERVICEID'
+      WHERE TABLE_NAME = 'RENDER_APPS' AND COLUMN_NAME IN ('SERVICEID', 'DEPLOYHOOK')
     `);
-    if (!cols.length) {
+    const names = new Set((cols || []).map((c) => String(c.COLUMN_NAME || '').toUpperCase()));
+    if (!names.has('SERVICEID')) {
       await db.query('ALTER TABLE RENDER_APPS ADD SERVICEID VARCHAR(120) NULL');
+    }
+    if (!names.has('DEPLOYHOOK')) {
+      await db.query('ALTER TABLE RENDER_APPS ADD DEPLOYHOOK VARCHAR(1000) NULL');
     }
   });
 }
@@ -1009,7 +1017,25 @@ function mapRenderApp(row) {
     ...n,
     USAGE: n.USAGE == null || n.USAGE === '' ? 0 : Number(n.USAGE),
     SERVICEID: n.SERVICEID == null ? '' : String(n.SERVICEID),
+    DEPLOYHOOK: n.DEPLOYHOOK == null ? '' : String(n.DEPLOYHOOK),
   };
+}
+
+function parseDeployHook(value) {
+  const hook = String(value || '').trim();
+  if (!hook) return null;
+  if (!/^https?:\/\//i.test(hook)) throw new Error('DEPLOYHOOK debe ser una URL http(s)');
+  return hook;
+}
+
+function collectDeployHooksByServiceId(rows) {
+  const map = new Map();
+  for (const row of rows || []) {
+    const serviceId = String(row.SERVICEID || '').trim();
+    const hook = String(row.DEPLOYHOOK || '').trim();
+    if (serviceId && hook) map.set(serviceId, hook);
+  }
+  return map;
 }
 
 function parseUsageValue(value) {
@@ -1151,6 +1177,7 @@ async function listRenderApps(conexion, idRender, search = '') {
             OR CAST(IDSERVICIO AS VARCHAR(20)) LIKE @search
             OR CAST([USAGE] AS VARCHAR(50)) LIKE @search
             OR ISNULL(SERVICEID, '') LIKE @search
+            OR ISNULL(DEPLOYHOOK, '') LIKE @search
           )
           ORDER BY IDSERVICIO
         `);
@@ -1158,14 +1185,15 @@ async function listRenderApps(conexion, idRender, search = '') {
     }
 
     const [rows] = await db.query(
-      `SELECT IDSERVICIO, IDRENDER, URL, \`USAGE\` AS \`USAGE\`, SERVICEID FROM RENDER_APPS
+      `SELECT IDSERVICIO, IDRENDER, URL, \`USAGE\` AS \`USAGE\`, SERVICEID, DEPLOYHOOK FROM RENDER_APPS
        WHERE IDRENDER = ?
        AND (
          ? = '%%' OR URL LIKE ? OR CAST(IDSERVICIO AS CHAR) LIKE ?
          OR CAST(\`USAGE\` AS CHAR) LIKE ? OR IFNULL(SERVICEID, '') LIKE ?
+         OR IFNULL(DEPLOYHOOK, '') LIKE ?
        )
        ORDER BY IDSERVICIO`,
-      [idRender, term, term, term, term, term]
+      [idRender, term, term, term, term, term, term]
     );
     return rows.map(mapRenderApp);
   });
@@ -1188,6 +1216,7 @@ async function listRenderAppsAll(conexion, search = '') {
             a.URL,
             a.[USAGE],
             a.SERVICEID,
+            a.DEPLOYHOOK,
             c.EMAIL AS CUENTA_EMAIL
           FROM RENDER_APPS a
           LEFT JOIN RENDER_CUENTAS c ON c.IDRENDER = a.IDRENDER
@@ -1197,6 +1226,7 @@ async function listRenderAppsAll(conexion, search = '') {
              OR CAST(a.IDRENDER AS VARCHAR(20)) LIKE @search
              OR CAST(a.[USAGE] AS VARCHAR(50)) LIKE @search
              OR ISNULL(a.SERVICEID, '') LIKE @search
+             OR ISNULL(a.DEPLOYHOOK, '') LIKE @search
           ORDER BY c.EMAIL, a.URL
         `);
       return (result.recordset || []).map((row) => ({
@@ -1212,6 +1242,7 @@ async function listRenderAppsAll(conexion, search = '') {
          a.URL,
          a.\`USAGE\` AS \`USAGE\`,
          a.SERVICEID,
+         a.DEPLOYHOOK,
          c.EMAIL AS CUENTA_EMAIL
        FROM RENDER_APPS a
        LEFT JOIN RENDER_CUENTAS c ON c.IDRENDER = a.IDRENDER
@@ -1221,8 +1252,9 @@ async function listRenderAppsAll(conexion, search = '') {
           OR CAST(a.IDRENDER AS CHAR) LIKE ?
           OR CAST(a.\`USAGE\` AS CHAR) LIKE ?
           OR IFNULL(a.SERVICEID, '') LIKE ?
+          OR IFNULL(a.DEPLOYHOOK, '') LIKE ?
        ORDER BY c.EMAIL, a.URL`,
-      [term, term, term, term, term, term]
+      [term, term, term, term, term, term, term]
     );
     return rows.map((row) => ({
       ...mapRenderApp(row),
@@ -1242,7 +1274,7 @@ async function getRenderApp(conexion, id) {
       return mapRenderApp(result.recordset[0]);
     }
     const [rows] = await db.query(
-      'SELECT IDSERVICIO, IDRENDER, URL, `USAGE` AS `USAGE`, SERVICEID FROM RENDER_APPS WHERE IDSERVICIO = ?',
+      'SELECT IDSERVICIO, IDRENDER, URL, `USAGE` AS `USAGE`, SERVICEID, DEPLOYHOOK FROM RENDER_APPS WHERE IDSERVICIO = ?',
       [id]
     );
     if (!rows.length) throw new Error('App Render no encontrada');
@@ -1256,6 +1288,7 @@ async function createRenderApp(conexion, data) {
   if (!Number.isFinite(idRender)) throw new Error('IDRENDER es obligatorio');
   const usage = parseUsageValue(data.USAGE);
   const serviceId = String(data.SERVICEID || '').trim();
+  const deployHook = parseDeployHook(data.DEPLOYHOOK);
 
   return withHostingConnection(conexion, async (db, tipo) => {
     if (tipo === 'mssql') {
@@ -1264,20 +1297,21 @@ async function createRenderApp(conexion, data) {
         .input('url', sql.VarChar(500), data.URL || '')
         .input('usage', sql.Decimal(18, 4), usage)
         .input('serviceId', sql.NVarChar(120), serviceId || null)
+        .input('deployHook', sql.NVarChar(1000), deployHook)
         .query(`
-          INSERT INTO RENDER_APPS (IDRENDER, URL, [USAGE], SERVICEID)
-          OUTPUT INSERTED.IDSERVICIO, INSERTED.IDRENDER, INSERTED.URL, INSERTED.[USAGE], INSERTED.SERVICEID
-          VALUES (@idRender, @url, @usage, @serviceId)
+          INSERT INTO RENDER_APPS (IDRENDER, URL, [USAGE], SERVICEID, DEPLOYHOOK)
+          OUTPUT INSERTED.IDSERVICIO, INSERTED.IDRENDER, INSERTED.URL, INSERTED.[USAGE], INSERTED.SERVICEID, INSERTED.DEPLOYHOOK
+          VALUES (@idRender, @url, @usage, @serviceId, @deployHook)
         `);
       return mapRenderApp(result.recordset[0]);
     }
 
     const [result] = await db.query(
-      'INSERT INTO RENDER_APPS (IDRENDER, URL, `USAGE`, SERVICEID) VALUES (?, ?, ?, ?)',
-      [idRender, data.URL || '', usage, serviceId || null]
+      'INSERT INTO RENDER_APPS (IDRENDER, URL, `USAGE`, SERVICEID, DEPLOYHOOK) VALUES (?, ?, ?, ?, ?)',
+      [idRender, data.URL || '', usage, serviceId || null, deployHook]
     );
     const [rows] = await db.query(
-      'SELECT IDSERVICIO, IDRENDER, URL, `USAGE` AS `USAGE`, SERVICEID FROM RENDER_APPS WHERE IDSERVICIO = ?',
+      'SELECT IDSERVICIO, IDRENDER, URL, `USAGE` AS `USAGE`, SERVICEID, DEPLOYHOOK FROM RENDER_APPS WHERE IDSERVICIO = ?',
       [result.insertId]
     );
     return mapRenderApp(rows[0]);
@@ -1290,6 +1324,7 @@ async function updateRenderApp(conexion, id, data) {
   if (!Number.isFinite(idRender)) throw new Error('IDRENDER es obligatorio');
   const usage = parseUsageValue(data.USAGE);
   const serviceId = String(data.SERVICEID || '').trim();
+  const deployHook = parseDeployHook(data.DEPLOYHOOK);
 
   return withHostingConnection(conexion, async (db, tipo) => {
     if (tipo === 'mssql') {
@@ -1299,10 +1334,11 @@ async function updateRenderApp(conexion, id, data) {
         .input('url', sql.VarChar(500), data.URL || '')
         .input('usage', sql.Decimal(18, 4), usage)
         .input('serviceId', sql.NVarChar(120), serviceId || null)
+        .input('deployHook', sql.NVarChar(1000), deployHook)
         .query(`
           UPDATE RENDER_APPS
-          SET IDRENDER=@idRender, URL=@url, [USAGE]=@usage, SERVICEID=@serviceId
-          OUTPUT INSERTED.IDSERVICIO, INSERTED.IDRENDER, INSERTED.URL, INSERTED.[USAGE], INSERTED.SERVICEID
+          SET IDRENDER=@idRender, URL=@url, [USAGE]=@usage, SERVICEID=@serviceId, DEPLOYHOOK=@deployHook
+          OUTPUT INSERTED.IDSERVICIO, INSERTED.IDRENDER, INSERTED.URL, INSERTED.[USAGE], INSERTED.SERVICEID, INSERTED.DEPLOYHOOK
           WHERE IDSERVICIO = @id
         `);
       if (!result.recordset.length) throw new Error('App Render no encontrada');
@@ -1310,12 +1346,12 @@ async function updateRenderApp(conexion, id, data) {
     }
 
     const [result] = await db.query(
-      'UPDATE RENDER_APPS SET IDRENDER=?, URL=?, `USAGE`=?, SERVICEID=? WHERE IDSERVICIO=?',
-      [idRender, data.URL || '', usage, serviceId || null, id]
+      'UPDATE RENDER_APPS SET IDRENDER=?, URL=?, `USAGE`=?, SERVICEID=?, DEPLOYHOOK=? WHERE IDSERVICIO=?',
+      [idRender, data.URL || '', usage, serviceId || null, deployHook, id]
     );
     if (!result.affectedRows) throw new Error('App Render no encontrada');
     const [rows] = await db.query(
-      'SELECT IDSERVICIO, IDRENDER, URL, `USAGE` AS `USAGE`, SERVICEID FROM RENDER_APPS WHERE IDSERVICIO = ?',
+      'SELECT IDSERVICIO, IDRENDER, URL, `USAGE` AS `USAGE`, SERVICEID, DEPLOYHOOK FROM RENDER_APPS WHERE IDSERVICIO = ?',
       [id]
     );
     return mapRenderApp(rows[0]);
@@ -1338,6 +1374,7 @@ async function deleteRenderAppsByCuenta(conexion, idRender) {
 
 /**
  * Reemplaza todas las apps de una cuenta con la lista de webapps (URL + SERVICEID).
+ * Conserva DEPLOYHOOK cuando el SERVICEID coincide.
  */
 async function replaceRenderAppsForCuenta(conexion, idRender, webapps = []) {
   await ensureRenderAppsServiceIdColumn(conexion);
@@ -1348,6 +1385,11 @@ async function replaceRenderAppsForCuenta(conexion, idRender, webapps = []) {
       const tx = new sql.Transaction(db);
       await tx.begin();
       try {
+        const prev = await new sql.Request(tx)
+          .input('idRender', sql.Int, idRender)
+          .query('SELECT SERVICEID, DEPLOYHOOK FROM RENDER_APPS WHERE IDRENDER = @idRender');
+        const hooksByService = collectDeployHooksByServiceId(prev.recordset);
+
         await new sql.Request(tx)
           .input('idRender', sql.Int, idRender)
           .query('DELETE FROM RENDER_APPS WHERE IDRENDER = @idRender');
@@ -1356,14 +1398,16 @@ async function replaceRenderAppsForCuenta(conexion, idRender, webapps = []) {
           const url = String(app.url || app.URL || '').trim();
           const serviceId = String(app.serviceId || app.SERVICEID || '').trim();
           if (!url && !serviceId) continue;
+          const deployHook = serviceId ? (hooksByService.get(serviceId) || null) : null;
           await new sql.Request(tx)
             .input('idRender', sql.Int, idRender)
             .input('url', sql.VarChar(500), url)
             .input('usage', sql.Decimal(18, 4), 0)
             .input('serviceId', sql.NVarChar(120), serviceId || null)
+            .input('deployHook', sql.NVarChar(1000), deployHook)
             .query(`
-              INSERT INTO RENDER_APPS (IDRENDER, URL, [USAGE], SERVICEID)
-              VALUES (@idRender, @url, @usage, @serviceId)
+              INSERT INTO RENDER_APPS (IDRENDER, URL, [USAGE], SERVICEID, DEPLOYHOOK)
+              VALUES (@idRender, @url, @usage, @serviceId, @deployHook)
             `);
         }
         await tx.commit();
@@ -1374,14 +1418,21 @@ async function replaceRenderAppsForCuenta(conexion, idRender, webapps = []) {
     } else {
       await db.beginTransaction();
       try {
+        const [prev] = await db.query(
+          'SELECT SERVICEID, DEPLOYHOOK FROM RENDER_APPS WHERE IDRENDER = ?',
+          [idRender]
+        );
+        const hooksByService = collectDeployHooksByServiceId(prev);
+
         await db.query('DELETE FROM RENDER_APPS WHERE IDRENDER = ?', [idRender]);
         for (const app of apps) {
           const url = String(app.url || app.URL || '').trim();
           const serviceId = String(app.serviceId || app.SERVICEID || '').trim();
           if (!url && !serviceId) continue;
+          const deployHook = serviceId ? (hooksByService.get(serviceId) || null) : null;
           await db.query(
-            'INSERT INTO RENDER_APPS (IDRENDER, URL, `USAGE`, SERVICEID) VALUES (?, ?, ?, ?)',
-            [idRender, url, 0, serviceId || null]
+            'INSERT INTO RENDER_APPS (IDRENDER, URL, `USAGE`, SERVICEID, DEPLOYHOOK) VALUES (?, ?, ?, ?, ?)',
+            [idRender, url, 0, serviceId || null, deployHook]
           );
         }
         await db.commit();

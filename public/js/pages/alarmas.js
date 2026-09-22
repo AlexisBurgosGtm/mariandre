@@ -184,7 +184,7 @@ function renderAlarmasTable(alarmas) {
       <div class="${tw.empty}">
         <i class="fa-solid fa-bell text-3xl text-slate-400"></i>
         <h3 class="text-lg font-semibold text-slate-800">Sin alarmas</h3>
-        <p class="text-sm text-slate-500">Agrega una alarma con fecha, hora y descripción. Al llegar el momento escucharás un aviso.</p>
+        <p class="text-sm text-slate-500">Agrega una alarma con fecha, hora y descripción. Al llegar el momento recibirás notificación push, aviso en pantalla y lectura por voz.</p>
         <button class="${tw.btnPrimary}" id="btn-first-alarma" type="button">
           <i class="fa-solid fa-plus"></i> Agregar alarma
         </button>

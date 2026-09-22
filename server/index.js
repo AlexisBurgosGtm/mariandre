@@ -4,6 +4,7 @@ const express = require('express');
 const sql = require('mssql');
 const mysql = require('mysql2/promise');
 const whatsapp = require('./whatsapp');
+const alarmasScheduler = require('./alarmas-scheduler');
 const hostingDb = require('./hostingDb');
 const renderApi = require('./renderApi');
 const appPaths = require('./appPaths');
@@ -14,6 +15,7 @@ const { launchAnyDesk } = require('./anydesk-launch');
 const PORT = Number(process.env.PORT) || 9006;
 
 let server = null;
+let alarmaSchedulerInterval = null;
 
 async function readConexiones() {
   try {
@@ -534,9 +536,58 @@ async function executeQuery(conexion, query) {
   throw new Error(`Tipo de base de datos no soportado: ${conexion.tipo}`);
 }
 
+const HOME_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+
+function parseHomeImageDataUrl(dataUrl) {
+  const match = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=\r\n]+)$/i.exec(String(dataUrl || '').trim());
+  if (!match) throw new Error('Imagen inválida (use PNG, JPG o WebP)');
+
+  const mime = match[1].toLowerCase();
+  const buffer = Buffer.from(match[2].replace(/\s/g, ''), 'base64');
+  if (!buffer.length) throw new Error('Imagen vacía');
+  if (buffer.length > HOME_IMAGE_MAX_BYTES) {
+    throw new Error('La imagen no puede superar 5 MB');
+  }
+
+  return { buffer, mime };
+}
+
 function createApp() {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
+
+  app.get('/inicio.png', async (_req, res) => {
+    try {
+      await fs.access(appPaths.homeImagePath());
+      res.setHeader('Cache-Control', 'no-cache');
+      return res.sendFile(appPaths.homeImagePath());
+    } catch {
+      return res.sendFile(appPaths.homeImageDefaultPath());
+    }
+  });
+
+  app.post('/api/home/image', express.json({ limit: '7mb' }), async (req, res) => {
+    try {
+      const { image } = req.body || {};
+      const { buffer } = parseHomeImageDataUrl(image);
+      await fs.writeFile(appPaths.homeImagePath(), buffer);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/home/image', async (_req, res) => {
+    try {
+      await fs.unlink(appPaths.homeImagePath());
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        return res.status(400).json({ error: err.message });
+      }
+    }
+    res.json({ ok: true });
+  });
+
   app.use(express.static(appPaths.publicPath()));
 
   app.get('/api/license-gen/catalog', (_req, res) => {
@@ -1562,6 +1613,10 @@ function createApp() {
     }
   });
 
+  app.get('/api/alarmas/events', (req, res) => {
+    alarmasScheduler.attachAlarmaSse(req, res);
+  });
+
   app.get('/api/alarmas', async (_req, res) => {
     try {
       const alarmas = await readAlarmas();
@@ -1724,6 +1779,8 @@ function startServer() {
     const app = createApp();
     server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`Servidor activo en http://localhost:${PORT}`);
+      if (alarmaSchedulerInterval) clearInterval(alarmaSchedulerInterval);
+      alarmaSchedulerInterval = alarmasScheduler.startAlarmaScheduler(readAlarmas, writeAlarmas);
       whatsapp.startSession().catch((err) => {
         console.warn('WhatsApp auto-start:', err.message);
       });
