@@ -14,3 +14,11 @@ puppeteer-cache/
 puppeteerCache/
 license-keys/
 license-keys-fserp/
+
+# Llave local del cifrado en disco. Si se pierde, no se recuperan los datos cifrados.
+.mariandre-key
+*.mariandre.tmp
+
+# Credenciales reales. En el repo solo van las plantillas *.example.json
+conexiones.json
+cursor-api.json

@@ -33,6 +33,10 @@ function conexionesPath() {
   return path.join(getDataDir(), 'conexiones.json');
 }
 
+function cursorApiPath() {
+  return path.join(getDataDir(), 'cursor-api.json');
+}
+
 function mantenimientoPath() {
   return path.join(getDataDir(), 'mantenimiento.json');
 }
@@ -110,11 +114,8 @@ async function ensureDataFiles() {
   await fs.mkdir(getDataDir(), { recursive: true });
   await fs.mkdir(path.join(getDataDir(), 'data'), { recursive: true });
 
-  await copyIfMissing(
-    path.join(getBundleDir(), 'conexiones.json'),
-    conexionesPath(),
-    '[]'
-  );
+  // conexiones.json y cursor-api.json los crea o migra server/secretStore.js
+  // (cifrados). No se copian desde el repositorio: pueden tener credenciales.
 
   await copyIfMissing(
     path.join(getBundleDir(), 'mantenimiento.json'),
@@ -174,6 +175,7 @@ module.exports = {
   getDataDir,
   getBundleDir,
   conexionesPath,
+  cursorApiPath,
   mantenimientoPath,
   configPath,
   serviciosOnlinePath,
