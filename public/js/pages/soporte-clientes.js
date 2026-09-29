@@ -112,7 +112,22 @@ function openSoporteModal(record, tokens, reload) {
   });
 }
 
-let soporteState = { records: [], search: '', tokenMap: {} };
+let soporteState = { records: [], search: '', tokenFilter: '', tokenMap: {} };
+
+function renderSoporteTokenFilterOptions(tokens, selectedToken) {
+  const sorted = [...tokens].sort((a, b) =>
+    String(a.EMPRESA || a.TOKEN).localeCompare(String(b.EMPRESA || b.TOKEN), 'es', { sensitivity: 'base' })
+  );
+  const options = sorted
+    .map(
+      (t) => `
+    <option value="${escapeHtml(t.TOKEN)}" ${selectedToken === t.TOKEN ? 'selected' : ''}>
+      ${escapeHtml(t.EMPRESA || t.TOKEN)} — ${escapeHtml(t.TOKEN)}
+    </option>`
+    )
+    .join('');
+  return `<option value="">Todos</option>${options}`;
+}
 
 function formatLastUpdate(value) {
   if (!value) return '';
@@ -151,7 +166,12 @@ function downloadBlob(filename, content, mime) {
 
 export function exportSoporteExcel() {
   const tokenMap = soporteState.tokenMap || {};
-  const filtered = filterSoporteRecords(soporteState.records, soporteState.search, tokenMap);
+  const filtered = filterSoporteRecords(
+    soporteState.records,
+    soporteState.search,
+    tokenMap,
+    soporteState.tokenFilter
+  );
   if (!filtered.length) {
     showToast('No hay filas para exportar', 'error');
     return;
@@ -200,10 +220,15 @@ export function exportSoporteExcel() {
   showToast(`Exportadas ${filtered.length} fila(s)`, 'success');
 }
 
-function filterSoporteRecords(records, search, tokenMap) {
+function filterSoporteRecords(records, search, tokenMap, tokenFilter = '') {
+  const token = String(tokenFilter || '').trim();
+  let list = records;
+  if (token) {
+    list = list.filter((r) => String(r.TOKEN || '').trim() === token);
+  }
   const q = search.trim().toLowerCase();
-  if (!q) return records;
-  return records.filter((r) => {
+  if (!q) return list;
+  return list.filter((r) => {
     const fields = [
       tokenMap[r.TOKEN] || '',
       r.TOKEN,
@@ -252,7 +277,12 @@ function renderSoporteRows(records, tokenMap) {
 function refreshSoporteTable(container, tokenMap, reload) {
   const tbody = container.querySelector('#soporte-tbody');
   if (!tbody) return;
-  const filtered = filterSoporteRecords(soporteState.records, soporteState.search, tokenMap);
+  const filtered = filterSoporteRecords(
+    soporteState.records,
+    soporteState.search,
+    tokenMap,
+    soporteState.tokenFilter
+  );
   tbody.innerHTML = renderSoporteRows(filtered, tokenMap);
   bindSoporteEvents(container, soporteState.records, window.__soporteTokens || [], reload);
 }
@@ -395,7 +425,10 @@ export async function renderSoporteClientes(container) {
     ${renderHostingBanner(hosting)}
     <div class="${tw.tablePanel}">
       <div class="${tw.tableToolbar}">
-        <input type="search" id="soporte-search" class="${cx(tw.input, 'max-w-md')}" placeholder="Buscar en soporte..." value="${escapeHtml(soporteState.search)}">
+        <input type="search" id="soporte-search" class="${cx(tw.input, 'min-w-[12rem] max-w-md flex-1')}" placeholder="Buscar en soporte..." value="${escapeHtml(soporteState.search)}">
+        <select id="soporte-token-filter" class="${cx(tw.input, 'max-w-sm shrink-0')}" aria-label="Filtrar por token">
+          ${renderSoporteTokenFilterOptions(tokens, soporteState.tokenFilter)}
+        </select>
       </div>
       <table class="${tw.table}">
         <thead>
@@ -412,7 +445,10 @@ export async function renderSoporteClientes(container) {
           </tr>
         </thead>
         <tbody id="soporte-tbody">
-          ${renderSoporteRows(filterSoporteRecords(records, soporteState.search, tokenMap), tokenMap)}
+          ${renderSoporteRows(
+            filterSoporteRecords(records, soporteState.search, tokenMap, soporteState.tokenFilter),
+            tokenMap
+          )}
         </tbody>
       </table>
     </div>
@@ -420,6 +456,11 @@ export async function renderSoporteClientes(container) {
 
   container.querySelector('#soporte-search')?.addEventListener('input', (e) => {
     soporteState.search = e.target.value;
+    refreshSoporteTable(container, tokenMap, reload);
+  });
+
+  container.querySelector('#soporte-token-filter')?.addEventListener('change', (e) => {
+    soporteState.tokenFilter = e.target.value;
     refreshSoporteTable(container, tokenMap, reload);
   });
 
