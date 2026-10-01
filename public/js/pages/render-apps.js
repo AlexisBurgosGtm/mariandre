@@ -633,7 +633,7 @@ function renderHostingBanner(hosting) {
   if (!hosting?.conexion) {
     return `<div class="${cx(tw.hostingBannerWarn, '!mb-0')}"><i class="fa-solid fa-triangle-exclamation"></i><span>Configura el <strong>Hosting principal</strong> en Configuraciones.</span></div>`;
   }
-  return `<div class="${cx(tw.hostingBanner, '!mb-0')}"><i class="fa-solid fa-server"></i><span>Hosting: <strong>${escapeHtml(hosting.conexion.nombre)}</strong></span></div>`;
+  return '';
 }
 
 export async function openNewRenderCuentaModal() {

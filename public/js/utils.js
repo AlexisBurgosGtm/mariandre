@@ -141,6 +141,16 @@ export function showLoader(container, message = 'Cargando...') {
   if (container) container.innerHTML = renderLoader(message);
 }
 
+/** Card con el nombre de la vista (desactivada: el título ya está en la pestaña). */
+export function renderSectionTitleCard() {
+  return '';
+}
+
+export function removeSectionTitleCards(root) {
+  if (!root) return;
+  root.querySelectorAll('.ma-section-title-card, [data-ma-section-title]').forEach((el) => el.remove());
+}
+
 export function showTableLoader(element, message = 'Cargando...') {
   if (element) element.innerHTML = renderLoader(message, { compact: true });
 }

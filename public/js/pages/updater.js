@@ -196,12 +196,7 @@ function renderHostingBanner(hosting) {
     `;
   }
 
-  return `
-    <div class="${tw.hostingBanner}">
-      <i class="fa-solid fa-server"></i>
-      <span>Hosting: <strong>${escapeHtml(hosting.conexion.nombre)}</strong></span>
-    </div>
-  `;
+  return '';
 }
 
 export async function openNewUpdaterModal() {

@@ -266,8 +266,7 @@ export async function renderWhatsapp(container) {
   container.innerHTML = `
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
       <div class="${cx(tw.panel, 'space-y-4')}">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <h2 class="flex items-center gap-2 text-lg font-semibold text-slate-800"><i class="fa-brands fa-whatsapp text-green-600"></i> WhatsApp</h2>
+        <div class="flex flex-wrap items-center justify-end gap-2">
           <span class="${statusClass('idle')}" id="wa-connection-status">Sin iniciar</span>
         </div>
         <p class="text-sm text-slate-500" id="wa-user-info"></p>

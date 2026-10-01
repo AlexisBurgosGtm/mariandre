@@ -220,6 +220,20 @@ export function exportSoporteExcel() {
   showToast(`Exportadas ${filtered.length} fila(s)`, 'success');
 }
 
+function sortSoporteRecords(list) {
+  return [...list].sort((a, b) => {
+    const byToken = String(a.TOKEN || '').trim().localeCompare(String(b.TOKEN || '').trim(), 'es', {
+      sensitivity: 'base',
+      numeric: true,
+    });
+    if (byToken !== 0) return byToken;
+    return String(a.SUCURSAL || '').trim().localeCompare(String(b.SUCURSAL || '').trim(), 'es', {
+      sensitivity: 'base',
+      numeric: true,
+    });
+  });
+}
+
 function filterSoporteRecords(records, search, tokenMap, tokenFilter = '') {
   const token = String(tokenFilter || '').trim();
   let list = records;
@@ -227,8 +241,8 @@ function filterSoporteRecords(records, search, tokenMap, tokenFilter = '') {
     list = list.filter((r) => String(r.TOKEN || '').trim() === token);
   }
   const q = search.trim().toLowerCase();
-  if (!q) return list;
-  return list.filter((r) => {
+  if (!q) return sortSoporteRecords(list);
+  return sortSoporteRecords(list.filter((r) => {
     const fields = [
       tokenMap[r.TOKEN] || '',
       r.TOKEN,
@@ -240,7 +254,7 @@ function filterSoporteRecords(records, search, tokenMap, tokenFilter = '') {
       formatLastUpdate(r.LASTUPDATE),
     ].map((v) => String(v || '').toLowerCase());
     return fields.some((f) => f.includes(q));
-  });
+  }));
 }
 
 function renderSoporteRows(records, tokenMap) {
@@ -343,12 +357,7 @@ function renderHostingBanner(hosting) {
     `;
   }
 
-  return `
-    <div class="${tw.hostingBanner}">
-      <i class="fa-solid fa-server"></i>
-      <span>Hosting: <strong>${escapeHtml(hosting.conexion.nombre)}</strong> (${escapeHtml(hosting.conexion.host)})</span>
-    </div>
-  `;
+  return '';
 }
 
 export async function openNewSoporteModal() {

@@ -661,9 +661,16 @@ async function ensureCommunityEmpresasSyncTable(conexion) {
             SERVER_IP VARCHAR(200) NULL,
             SERVER_DB VARCHAR(200) NULL,
             SERVER_USER VARCHAR(200) NULL,
-            SERVER_PASS VARCHAR(200) NULL
+            SERVER_PASS VARCHAR(200) NULL,
+            LINK VARCHAR(500) NULL
           )
         END
+
+        IF NOT EXISTS (
+          SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_NAME = 'COMMUNITY_EMPRESAS_SYNC' AND COLUMN_NAME = 'LINK'
+        )
+          ALTER TABLE COMMUNITY_EMPRESAS_SYNC ADD LINK VARCHAR(500) NULL;
       `);
       return;
     }
@@ -678,9 +685,19 @@ async function ensureCommunityEmpresasSyncTable(conexion) {
         SERVER_IP VARCHAR(200) NULL,
         SERVER_DB VARCHAR(200) NULL,
         SERVER_USER VARCHAR(200) NULL,
-        SERVER_PASS VARCHAR(200) NULL
+        SERVER_PASS VARCHAR(200) NULL,
+        LINK VARCHAR(500) NULL
       )
     `);
+
+    const [cols] = await db.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'COMMUNITY_EMPRESAS_SYNC'`
+    );
+    const names = new Set((cols || []).map((c) => String(c.COLUMN_NAME || '').toUpperCase()));
+    if (!names.has('LINK')) {
+      await db.query('ALTER TABLE COMMUNITY_EMPRESAS_SYNC ADD COLUMN LINK VARCHAR(500) NULL');
+    }
   });
 }
 
@@ -689,7 +706,7 @@ async function listCommunityEmpresas(conexion, token, search = '') {
   const term = `%${(search || '').trim()}%`;
 
   return withHostingConnection(conexion, async (db, tipo) => {
-    const fields = 'ID, TOKEN, EMPNIT, EMPNOMBRE, VPN_CODE, SERVER_IP, SERVER_DB, SERVER_USER, SERVER_PASS';
+    const fields = 'ID, TOKEN, EMPNIT, EMPNOMBRE, VPN_CODE, SERVER_IP, SERVER_DB, SERVER_USER, SERVER_PASS, LINK';
 
     if (tipo === 'mssql') {
       const result = await db.request()
@@ -701,6 +718,7 @@ async function listCommunityEmpresas(conexion, token, search = '') {
           AND (
             @search = '%%' OR EMPNIT LIKE @search OR EMPNOMBRE LIKE @search
             OR VPN_CODE LIKE @search OR SERVER_IP LIKE @search OR SERVER_DB LIKE @search
+            OR LINK LIKE @search
           )
           ORDER BY EMPNOMBRE, EMPNIT
         `);
@@ -711,9 +729,9 @@ async function listCommunityEmpresas(conexion, token, search = '') {
       `SELECT ${fields} FROM COMMUNITY_EMPRESAS_SYNC
        WHERE TOKEN = ?
        AND (? = '%%' OR EMPNIT LIKE ? OR EMPNOMBRE LIKE ?
-            OR VPN_CODE LIKE ? OR SERVER_IP LIKE ? OR SERVER_DB LIKE ?)
+            OR VPN_CODE LIKE ? OR SERVER_IP LIKE ? OR SERVER_DB LIKE ? OR LINK LIKE ?)
        ORDER BY EMPNOMBRE, EMPNIT`,
-      [token, term, term, term, term, term, term, term]
+      [token, term, term, term, term, term, term, term, term]
     );
     return rows.map(normalizeRow);
   });
@@ -735,25 +753,26 @@ async function createCommunityEmpresa(conexion, data) {
         .input('db', sql.VarChar(200), data.SERVER_DB || '')
         .input('user', sql.VarChar(200), data.SERVER_USER || '')
         .input('pass', sql.VarChar(200), data.SERVER_PASS || '')
+        .input('link', sql.VarChar(500), data.LINK || '')
         .query(`
           INSERT INTO COMMUNITY_EMPRESAS_SYNC
-            (TOKEN, EMPNIT, EMPNOMBRE, VPN_CODE, SERVER_IP, SERVER_DB, SERVER_USER, SERVER_PASS)
+            (TOKEN, EMPNIT, EMPNOMBRE, VPN_CODE, SERVER_IP, SERVER_DB, SERVER_USER, SERVER_PASS, LINK)
           OUTPUT INSERTED.ID, INSERTED.TOKEN, INSERTED.EMPNIT, INSERTED.EMPNOMBRE,
-                 INSERTED.VPN_CODE, INSERTED.SERVER_IP, INSERTED.SERVER_DB, INSERTED.SERVER_USER, INSERTED.SERVER_PASS
-          VALUES (@token, @empnit, @empnombre, @vpn, @ip, @db, @user, @pass)
+                 INSERTED.VPN_CODE, INSERTED.SERVER_IP, INSERTED.SERVER_DB, INSERTED.SERVER_USER, INSERTED.SERVER_PASS, INSERTED.LINK
+          VALUES (@token, @empnit, @empnombre, @vpn, @ip, @db, @user, @pass, @link)
         `);
       return normalizeRow(result.recordset[0]);
     }
 
     const [result] = await db.query(
       `INSERT INTO COMMUNITY_EMPRESAS_SYNC
-        (TOKEN, EMPNIT, EMPNOMBRE, VPN_CODE, SERVER_IP, SERVER_DB, SERVER_USER, SERVER_PASS)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        (TOKEN, EMPNIT, EMPNOMBRE, VPN_CODE, SERVER_IP, SERVER_DB, SERVER_USER, SERVER_PASS, LINK)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [token, data.EMPNIT || '', data.EMPNOMBRE || '', data.VPN_CODE || '',
-        data.SERVER_IP || '', data.SERVER_DB || '', data.SERVER_USER || '', data.SERVER_PASS || '']
+        data.SERVER_IP || '', data.SERVER_DB || '', data.SERVER_USER || '', data.SERVER_PASS || '', data.LINK || '']
     );
     const [rows] = await db.query(
-      'SELECT ID, TOKEN, EMPNIT, EMPNOMBRE, VPN_CODE, SERVER_IP, SERVER_DB, SERVER_USER, SERVER_PASS FROM COMMUNITY_EMPRESAS_SYNC WHERE ID = ?',
+      'SELECT ID, TOKEN, EMPNIT, EMPNOMBRE, VPN_CODE, SERVER_IP, SERVER_DB, SERVER_USER, SERVER_PASS, LINK FROM COMMUNITY_EMPRESAS_SYNC WHERE ID = ?',
       [result.insertId]
     );
     return normalizeRow(rows[0]);
@@ -773,12 +792,13 @@ async function updateCommunityEmpresa(conexion, id, data) {
         .input('db', sql.VarChar(200), data.SERVER_DB || '')
         .input('user', sql.VarChar(200), data.SERVER_USER || '')
         .input('pass', sql.VarChar(200), data.SERVER_PASS || '')
+        .input('link', sql.VarChar(500), data.LINK || '')
         .query(`
           UPDATE COMMUNITY_EMPRESAS_SYNC
           SET TOKEN=@token, EMPNIT=@empnit, EMPNOMBRE=@empnombre, VPN_CODE=@vpn,
-              SERVER_IP=@ip, SERVER_DB=@db, SERVER_USER=@user, SERVER_PASS=@pass
+              SERVER_IP=@ip, SERVER_DB=@db, SERVER_USER=@user, SERVER_PASS=@pass, LINK=@link
           OUTPUT INSERTED.ID, INSERTED.TOKEN, INSERTED.EMPNIT, INSERTED.EMPNOMBRE,
-                 INSERTED.VPN_CODE, INSERTED.SERVER_IP, INSERTED.SERVER_DB, INSERTED.SERVER_USER, INSERTED.SERVER_PASS
+                 INSERTED.VPN_CODE, INSERTED.SERVER_IP, INSERTED.SERVER_DB, INSERTED.SERVER_USER, INSERTED.SERVER_PASS, INSERTED.LINK
           WHERE ID = @id
         `);
       if (!result.recordset.length) throw new Error('Registro no encontrado');
@@ -787,14 +807,14 @@ async function updateCommunityEmpresa(conexion, id, data) {
 
     const [result] = await db.query(
       `UPDATE COMMUNITY_EMPRESAS_SYNC
-       SET TOKEN=?, EMPNIT=?, EMPNOMBRE=?, VPN_CODE=?, SERVER_IP=?, SERVER_DB=?, SERVER_USER=?, SERVER_PASS=?
+       SET TOKEN=?, EMPNIT=?, EMPNOMBRE=?, VPN_CODE=?, SERVER_IP=?, SERVER_DB=?, SERVER_USER=?, SERVER_PASS=?, LINK=?
        WHERE ID=?`,
       [data.TOKEN || '', data.EMPNIT || '', data.EMPNOMBRE || '', data.VPN_CODE || '',
-        data.SERVER_IP || '', data.SERVER_DB || '', data.SERVER_USER || '', data.SERVER_PASS || '', id]
+        data.SERVER_IP || '', data.SERVER_DB || '', data.SERVER_USER || '', data.SERVER_PASS || '', data.LINK || '', id]
     );
     if (!result.affectedRows) throw new Error('Registro no encontrado');
     const [rows] = await db.query(
-      'SELECT ID, TOKEN, EMPNIT, EMPNOMBRE, VPN_CODE, SERVER_IP, SERVER_DB, SERVER_USER, SERVER_PASS FROM COMMUNITY_EMPRESAS_SYNC WHERE ID = ?',
+      'SELECT ID, TOKEN, EMPNIT, EMPNOMBRE, VPN_CODE, SERVER_IP, SERVER_DB, SERVER_USER, SERVER_PASS, LINK FROM COMMUNITY_EMPRESAS_SYNC WHERE ID = ?',
       [id]
     );
     return normalizeRow(rows[0]);

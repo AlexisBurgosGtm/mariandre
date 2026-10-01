@@ -19,7 +19,7 @@ import { renderNotas } from './pages/notas.js';
 import { initWhatsAppListener } from './services/whatsapp.js';
 import { initAlarmas } from './services/alarmas.js';
 import { initTts } from './tts.js';
-import { renderLoader } from './utils.js';
+import { renderLoader, removeSectionTitleCards } from './utils.js';
 import { tw, cx } from './ui.js';
 
 const renders = {
@@ -276,6 +276,7 @@ async function mountTab(path) {
 
   try {
     await route.render(panel);
+    if (tabRenderGeneration.get(path) === generation) removeSectionTitleCards(panel);
   } catch (err) {
     if (tabRenderGeneration.get(path) !== generation) return;
     panel.innerHTML = `<div class="${tw.empty}"><p>${err.message}</p></div>`;
@@ -344,6 +345,7 @@ async function reloadCurrentPage() {
 
   try {
     await routes[path].render(panel);
+    if (tabRenderGeneration.get(path) === generation) removeSectionTitleCards(panel);
   } catch (err) {
     if (tabRenderGeneration.get(path) !== generation) return;
     panel.innerHTML = `<div class="${tw.empty}"><p>${err.message}</p></div>`;

@@ -107,6 +107,10 @@ function getCommunityFormHtml(record, token) {
           <label class="${tw.label}" for="comm-pass">SERVER_PASS</label>
           <input class="${tw.input}" type="text" id="comm-pass" value="${escapeHtml(data.SERVER_PASS || '')}">
         </div>
+        <div class="${tw.formGroupFull}">
+          <label class="${tw.label}" for="comm-link">Link</label>
+          <input class="${tw.input}" type="url" id="comm-link" value="${escapeHtml(data.LINK || '')}" placeholder="https://...">
+        </div>
       </div>
       <div class="${tw.formActions}">
         <button type="submit" class="${tw.btnPrimary}"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
@@ -169,6 +173,7 @@ function openCommunityModal(record, token, reload) {
         SERVER_DB: form.querySelector('#comm-db').value.trim(),
         SERVER_USER: form.querySelector('#comm-user').value.trim(),
         SERVER_PASS: form.querySelector('#comm-pass').value.trim(),
+        LINK: form.querySelector('#comm-link').value.trim(),
       };
       if (isEdit) {
         await api.updateCommunityEmpresa(record.ID, payload);
@@ -221,6 +226,13 @@ function renderTokensTable(tokens, selectedToken) {
   `;
 }
 
+function renderCommunityLinkCell(link) {
+  const raw = String(link || '').trim();
+  if (!raw) return '—';
+  const href = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  return `<a href="${escapeHtml(href)}" class="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer" title="${escapeHtml(raw)}">${escapeHtml(raw)}</a>`;
+}
+
 function renderCommunityTable(rows) {
   if (!pageState.selectedToken) {
     return `<p class="px-2 py-6 text-center text-xs text-slate-500">Selecciona un TOKEN para ver empresas</p>`;
@@ -241,6 +253,7 @@ function renderCommunityTable(rows) {
           <th class="${tokensTh}">DB</th>
           <th class="${tokensTh}">User</th>
           <th class="${tokensTh}">Pass</th>
+          <th class="${tokensTh}">Link</th>
           <th class="${tokensTh}"></th>
         </tr>
       </thead>
@@ -254,6 +267,7 @@ function renderCommunityTable(rows) {
             <td class="${tokensTd}">${escapeHtml(r.SERVER_DB || '')}</td>
             <td class="${tokensTd}">${escapeHtml(r.SERVER_USER || '')}</td>
             <td class="${tokensTd}">${escapeHtml(r.SERVER_PASS || '')}</td>
+            <td class="${cx(tokensTd, 'max-w-[10rem] truncate')}">${renderCommunityLinkCell(r.LINK)}</td>
             <td class="${cx(tokensTd, tw.tableActions)}">
               <button type="button" class="${cx(tw.btnGhost, 'px-2 py-1 text-[10px]')} btn-edit-community" data-id="${escapeHtml(r.ID)}" title="Editar"><i class="fa-solid fa-pen"></i></button>
               <button type="button" class="${cx(tw.btnDanger, 'px-2 py-1 text-[10px]')} btn-delete-community" data-id="${escapeHtml(r.ID)}" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
@@ -410,7 +424,7 @@ function renderHostingBanner(hosting) {
   if (!hosting?.conexion) {
     return `<div class="${cx(tw.hostingBannerWarn, '!mb-0')}"><i class="fa-solid fa-triangle-exclamation"></i><span>Configura el <strong>Hosting principal</strong> en Configuraciones.</span></div>`;
   }
-  return `<div class="${cx(tw.hostingBanner, '!mb-0')}"><i class="fa-solid fa-server"></i><span>Hosting: <strong>${escapeHtml(hosting.conexion.nombre)}</strong></span></div>`;
+  return '';
 }
 
 export async function openNewTokenModal() {
@@ -464,9 +478,11 @@ export async function renderTokens(container) {
     return;
   }
 
+  const hostingBannerHtml = renderHostingBanner(hosting);
+
   container.innerHTML = `
     <div class="flex h-[calc(100dvh-7.5rem)] min-h-0 flex-col gap-2 overflow-hidden sm:h-[calc(100dvh-8rem)]">
-      <div class="shrink-0">${renderHostingBanner(hosting)}</div>
+      ${hostingBannerHtml ? `<div class="shrink-0">${hostingBannerHtml}</div>` : ''}
       <div class="grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-3 xl:grid-cols-2 xl:grid-rows-1">
         <section class="${tokensPanel}">
           <div class="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2">
