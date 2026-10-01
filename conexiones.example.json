@@ -1,0 +1,16 @@
+[
+  {
+    "id": "1",
+    "nombre": "Ejemplo local",
+    "tipo": "mssql",
+    "host": "localhost",
+    "puerto": 1433,
+    "usuario": "usuario",
+    "password": "",
+    "baseDatos": "MiBase",
+    "opciones": {
+      "encrypt": false,
+      "trustServerCertificate": true
+    }
+  }
+]

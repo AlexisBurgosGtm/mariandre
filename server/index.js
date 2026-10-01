@@ -8,6 +8,7 @@ const alarmasScheduler = require('./alarmas-scheduler');
 const hostingDb = require('./hostingDb');
 const renderApi = require('./renderApi');
 const appPaths = require('./appPaths');
+const secretStore = require('./secretStore');
 const licenseGenerator = require('./license-generator');
 const licenseGeneratorFserp = require('./license-generator-fserp');
 const { launchAnyDesk } = require('./anydesk-launch');
@@ -18,20 +19,11 @@ let server = null;
 let alarmaSchedulerInterval = null;
 
 async function readConexiones() {
-  try {
-    const data = await fs.readFile(appPaths.conexionesPath(), 'utf-8');
-    return JSON.parse(data);
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      await fs.writeFile(appPaths.conexionesPath(), '[]', 'utf-8');
-      return [];
-    }
-    throw err;
-  }
+  return secretStore.readJson(appPaths.conexionesPath(), []);
 }
 
 async function writeConexiones(conexiones) {
-  await fs.writeFile(appPaths.conexionesPath(), JSON.stringify(conexiones, null, 2), 'utf-8');
+  await secretStore.writeJson(appPaths.conexionesPath(), conexiones);
 }
 
 async function readMantenimiento() {
@@ -1812,6 +1804,7 @@ if (require.main === module) {
     try {
       appPaths.initPaths();
       await appPaths.ensureDataFiles();
+      secretStore.protectAtStartup();
       await startServer();
     } catch (err) {
       console.error('No se pudo iniciar el servidor:', err);
