@@ -6,6 +6,7 @@ const mysql = require('mysql2/promise');
 const whatsapp = require('./whatsapp');
 const alarmasScheduler = require('./alarmas-scheduler');
 const hostingDb = require('./hostingDb');
+const mercadosDb = require('./mercadosDb');
 const renderApi = require('./renderApi');
 const appPaths = require('./appPaths');
 const licenseGenerator = require('./license-generator');
@@ -367,6 +368,22 @@ async function resolveHostingConexion() {
   const conexion = conexiones.find((c) => String(c.id) === String(conexionId));
   if (!conexion) {
     throw new Error('La conexión de Hosting principal no existe');
+  }
+
+  return { conexion, config };
+}
+
+async function resolveMercadosConexion() {
+  const config = await readConfig();
+  const conexionId = config.mercadosEfectivos?.ventasConexionId;
+  if (!conexionId) {
+    throw new Error('Configura Mercados Efectivos Ventas en Configuraciones');
+  }
+
+  const conexiones = await readConexiones();
+  const conexion = conexiones.find((c) => String(c.id) === String(conexionId));
+  if (!conexion) {
+    throw new Error('La conexión de Mercados Efectivos Ventas no existe');
   }
 
   return { conexion, config };
@@ -1210,6 +1227,134 @@ function createApp() {
       });
     } catch (err) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/mercados-efectivos/status', async (_req, res) => {
+    try {
+      const config = await readConfig();
+      const conexiones = await readConexiones();
+      const ventasId = config.mercadosEfectivos?.ventasConexionId;
+      const conexion = conexiones.find((c) => String(c.id) === String(ventasId));
+      res.json({
+        ventasConexionId: ventasId || null,
+        conexion: conexion
+          ? { id: conexion.id, nombre: conexion.nombre, tipo: conexion.tipo, host: conexion.host, baseDatos: conexion.baseDatos }
+          : null,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/mercados-efectivos/sucursales', async (_req, res) => {
+    try {
+      const { conexion } = await resolveMercadosConexion();
+      const rows = await mercadosDb.listMeSucursales(conexion);
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/mercados-efectivos/sucursales/:cod', async (req, res) => {
+    try {
+      const { conexion } = await resolveMercadosConexion();
+      const row = await mercadosDb.getMeSucursal(conexion, decodeURIComponent(req.params.cod));
+      res.json(row);
+    } catch (err) {
+      const code = err.message === 'Sucursal no encontrada' ? 404 : 500;
+      res.status(code).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/mercados-efectivos/sucursales', async (req, res) => {
+    try {
+      const { conexion } = await resolveMercadosConexion();
+      const row = await mercadosDb.createMeSucursal(conexion, req.body);
+      res.status(201).json(row);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/mercados-efectivos/sucursales/:cod', async (req, res) => {
+    try {
+      const { conexion } = await resolveMercadosConexion();
+      const row = await mercadosDb.updateMeSucursal(
+        conexion,
+        decodeURIComponent(req.params.cod),
+        req.body,
+      );
+      res.json(row);
+    } catch (err) {
+      const code = err.message === 'Sucursal no encontrada' ? 404 : 400;
+      res.status(code).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/mercados-efectivos/sucursales/:cod', async (req, res) => {
+    try {
+      const { conexion } = await resolveMercadosConexion();
+      await mercadosDb.deleteMeSucursal(conexion, decodeURIComponent(req.params.cod));
+      res.json({ ok: true });
+    } catch (err) {
+      const code = err.message === 'Sucursal no encontrada' ? 404 : 400;
+      res.status(code).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/mercados-efectivos/usuarios', async (req, res) => {
+    try {
+      const { conexion } = await resolveMercadosConexion();
+      const codsucursal = String(req.query.codsucursal || '').trim();
+      const rows = await mercadosDb.listMeUsuarios(conexion, { codsucursal });
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/mercados-efectivos/usuarios/:id', async (req, res) => {
+    try {
+      const { conexion } = await resolveMercadosConexion();
+      const row = await mercadosDb.getMeUsuario(conexion, parseInt(req.params.id, 10));
+      res.json(row);
+    } catch (err) {
+      const code = err.message === 'Usuario no encontrado' ? 404 : 500;
+      res.status(code).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/mercados-efectivos/usuarios', async (req, res) => {
+    try {
+      const { conexion } = await resolveMercadosConexion();
+      const row = await mercadosDb.createMeUsuario(conexion, req.body);
+      res.status(201).json(row);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/mercados-efectivos/usuarios/:id', async (req, res) => {
+    try {
+      const { conexion } = await resolveMercadosConexion();
+      const row = await mercadosDb.updateMeUsuario(conexion, parseInt(req.params.id, 10), req.body);
+      res.json(row);
+    } catch (err) {
+      const code = err.message === 'Usuario no encontrado' ? 404 : 400;
+      res.status(code).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/mercados-efectivos/usuarios/:id', async (req, res) => {
+    try {
+      const { conexion } = await resolveMercadosConexion();
+      await mercadosDb.deleteMeUsuario(conexion, parseInt(req.params.id, 10));
+      res.json({ ok: true });
+    } catch (err) {
+      const code = err.message === 'Usuario no encontrado' ? 404 : 400;
+      res.status(code).json({ error: err.message });
     }
   });
 

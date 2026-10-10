@@ -23,6 +23,25 @@ export const api = {
   getConfig: () => request('/config'),
   updateConfig: (data) => request('/config', { method: 'PUT', body: JSON.stringify(data) }),
   getHostingStatus: () => request('/hosting/status'),
+  getMercadosEfectivosStatus: () => request('/mercados-efectivos/status'),
+  getMeSucursales: () => request('/mercados-efectivos/sucursales'),
+  getMeSucursal: (cod) => request(`/mercados-efectivos/sucursales/${encodeURIComponent(cod)}`),
+  createMeSucursal: (data) => request('/mercados-efectivos/sucursales', { method: 'POST', body: JSON.stringify(data) }),
+  updateMeSucursal: (cod, data) =>
+    request(`/mercados-efectivos/sucursales/${encodeURIComponent(cod)}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteMeSucursal: (cod) =>
+    request(`/mercados-efectivos/sucursales/${encodeURIComponent(cod)}`, { method: 'DELETE' }),
+  getMeUsuarios: (codsucursal = '') => {
+    const params = new URLSearchParams();
+    if (codsucursal) params.set('codsucursal', codsucursal);
+    const q = params.toString();
+    return request(`/mercados-efectivos/usuarios${q ? `?${q}` : ''}`);
+  },
+  getMeUsuario: (id) => request(`/mercados-efectivos/usuarios/${id}`),
+  createMeUsuario: (data) => request('/mercados-efectivos/usuarios', { method: 'POST', body: JSON.stringify(data) }),
+  updateMeUsuario: (id, data) =>
+    request(`/mercados-efectivos/usuarios/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteMeUsuario: (id) => request(`/mercados-efectivos/usuarios/${id}`, { method: 'DELETE' }),
   getSoporteAnydesk: () => request('/soporte/anydesk'),
   getSoporteTokens: () => request('/soporte/tokens'),
   createSoporteAnydesk: (data) => request('/soporte/anydesk', { method: 'POST', body: JSON.stringify(data) }),
