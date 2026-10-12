@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const appPaths = require('./appPaths');
+const secretStore = require('./secretStore');
 
 function resolveOnnebRoot() {
   if (process.env.ONNEB_ROOT) {
@@ -70,8 +71,10 @@ function ensureKeys(onnebRoot) {
       publicKeyEncoding: { type: 'spki', format: 'pem' },
       privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
     });
-    fs.writeFileSync(privateKeyPath, privateKey, { encoding: 'utf8', mode: 0o600 });
+    secretStore.writeTextSync(privateKeyPath, privateKey);
     fs.writeFileSync(publicKeyPath, publicKey, 'utf8');
+  } else {
+    secretStore.readTextSync(privateKeyPath);
   }
 
   const pub = fs.readFileSync(publicKeyPath, 'utf8');
@@ -83,7 +86,7 @@ function ensureKeys(onnebRoot) {
 }
 
 function signPayload(privateKeyPath, canonicalPayload, payload) {
-  const privateKey = fs.readFileSync(privateKeyPath, 'utf8');
+  const privateKey = secretStore.readTextSync(privateKeyPath);
   const data = Buffer.from(canonicalPayload(payload), 'utf8');
   const signature = crypto.sign('SHA256', data, privateKey).toString('base64');
   return { payload, signature };
