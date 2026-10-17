@@ -57,10 +57,6 @@ function licenseTemplatesPath() {
   return path.join(getDataDir(), 'license-templates.json');
 }
 
-function licenseTemplatesFserpPath() {
-  return path.join(getDataDir(), 'license-templates-fserp.json');
-}
-
 function whatsappAuthPath() {
   return path.join(getDataDir(), '.baileys_auth');
 }
@@ -152,12 +148,6 @@ async function ensureDataFiles() {
     '[]'
   );
 
-  await copyIfMissing(
-    path.join(getBundleDir(), 'license-templates-fserp.json'),
-    licenseTemplatesFserpPath(),
-    '[]'
-  );
-
   await fs.mkdir(whatsappAuthPath(), { recursive: true });
 }
 
@@ -180,7 +170,6 @@ module.exports = {
   alarmasPath,
   comandosVozPath,
   licenseTemplatesPath,
-  licenseTemplatesFserpPath,
   whatsappAuthPath,
   resolveModule,
   resolveModulePath,

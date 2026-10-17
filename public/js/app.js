@@ -13,7 +13,6 @@ import { renderConfiguraciones } from './pages/configuraciones.js';
 import { initVoz } from './services/voz.js';
 import { renderAlarmas, openNewAlarmaModal } from './pages/alarmas.js';
 import { renderGeneradorLicencias } from './pages/generador-licencias.js';
-import { renderGeneradorLicenciasFserp } from './pages/generador-licencias-fserp.js';
 import { renderMercadosEfectivos } from './pages/mercados-efectivos.js';
 import { renderNotas } from './pages/notas.js';
 import { initWhatsAppListener } from './services/whatsapp.js';
@@ -25,7 +24,6 @@ import { tw, cx } from './ui.js';
 const renders = {
   '/': renderHome,
   '/generador-licencias': renderGeneradorLicencias,
-  '/licencias-fserp': renderGeneradorLicenciasFserp,
   '/conexiones': renderConexiones,
   '/servicios-online': renderServiciosOnline,
   '/render-apps': renderRenderApps,

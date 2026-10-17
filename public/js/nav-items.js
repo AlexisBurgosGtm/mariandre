@@ -1,7 +1,6 @@
 export const NAV_ITEMS = [
   { path: '/', title: 'Inicio', icon: 'fa-house' },
   { path: '/generador-licencias', title: 'Licencias OnneB', icon: 'fa-certificate' },
-  { path: '/licencias-fserp', title: 'Licencias FS ERP', icon: 'fa-stamp' },
   { path: '/conexiones', title: 'Conexiones', icon: 'fa-plug' },
   { path: '/servicios-online', title: 'Servicios Online', icon: 'fa-globe' },
   { path: '/render-apps', title: 'Render Apps', icon: 'fa-cloud' },
